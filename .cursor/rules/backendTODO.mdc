@@ -8,7 +8,7 @@ alwaysApply: true
 
 ---
 
-## 1. User & Authentication
+## 1. User & Authentication TODO: DONE
 
 - [ ] **User Registration**
   - Implement `/auth/register` endpoint

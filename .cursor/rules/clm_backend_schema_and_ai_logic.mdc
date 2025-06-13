@@ -628,4 +628,41 @@ server/
 - **utils/**: Shared utility functions (e.g., password hashing, token validation).
 - **tests/**: All backend tests (pytest or unittest).
 
+---
 
+## **Step 1: Add a Trigger Function and Trigger in Supabase**
+
+1. **Open the Supabase SQL Editor** for your project.
+
+2. **Paste and run the following SQL:**
+
+```sql
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  if new.email_confirmed_at is not null then
+    insert into public.users (id, email, password_hash)
+    values (new.id, new.email, 'external_auth')
+    on conflict (id) do nothing;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- Trigger for INSERT
+create trigger on_auth_user_created
+after insert on auth.users
+for each row execute procedure public.handle_new_user();
+
+-- Trigger for UPDATE (when email_confirmed_at changes)
+create trigger on_auth_user_confirmed
+after update of email_confirmed_at on auth.users
+for each row
+when (old.email_confirmed_at is null and new.email_confirmed_at is not null)
+execute procedure public.handle_new_user();
+```
+
+- This will automatically insert a new row into your `public.users` table whenever a user confirms their email and is added to `auth.users`.
+- The `password_hash` is set to `'external_auth'` as a placeholder. Adjust if you want to support password login.
+
+---
