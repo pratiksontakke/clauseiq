@@ -1,0 +1,19 @@
+# Core dependencies
+fastapi
+uvicorn[standard]
+asyncpg
+bcrypt
+python-dotenv
+supabase
+python-jose[cryptography]  # For JWT handling
+passlib[bcrypt]             # For password hashing (alternative to bcrypt)
+email-validator             # For validating email addresses
+
+# Optional/future features
+# aiofiles                  # For async file handling (uploads)
+# httpx                     # For async HTTP requests (e.g., sending emails)
+# pydantic[email]           # For advanced email validation
+
+# Testing
+pytest
+httpx[cli] 

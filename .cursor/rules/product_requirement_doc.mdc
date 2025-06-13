@@ -1,0 +1,241 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# AI-Augmented Contract Lifecycle Management (CLM) Platform
+
+A comprehensive contract lifecycle management platform with AI-powered features for legal and procurement teams.
+
+## Table of Contents
+
+- [Purpose & Scope](mdc:#purpose--scope)
+- [User Roles & Permissions](mdc:#user-roles--permissions)
+- [Contract Lifecycle](mdc:#contract-lifecycle)
+- [AI Features](mdc:#ai-features)
+- [Home Screen Experience](mdc:#home-screen-experience)
+- [Commenting & Revision Loop](mdc:#commenting--revision-loop)
+- [View Receipts](mdc:#view-receipts)
+- [Notifications & Reminders](mdc:#notifications--reminders)
+- [Locking Rules](mdc:#locking-rules)
+- [Re-inviting After Change-Request](mdc:#re-inviting-after-change-request)
+- [AI Pipeline Trigger & Optimisation](mdc:#ai-pipeline-trigger--optimisation)
+- [Edge Cases](mdc:#edge-cases)
+- [Post-MVP Roadmap](mdc:#post-mvp-roadmap)
+- [Feature Completeness](mdc:#feature-completeness)
+- [Known Risks](mdc:#known-risks)
+
+## Purpose & Scope
+
+Legal and procurement teams need one workspace to create, negotiate, sign, track, and renew contracts.  
+The goal for the MVP is to deliver every feature requested in the assignment while keeping the experience intuitive for three clearly-defined user types:
+
+1. **Contract Manager** (upload, invite, counter-sign, renew)  
+2. **Authorised Signatory** (review, comment, sign in enforced order)  
+3. **Contract Observer** (read-only observer, invited per contract)
+
+All AI add-ons (clause extraction, risk detection, version-diff summary, RAG chat) must be available to every invited participant.
+
+## User Roles & Permissions
+
+| Capability                                             | Contract Manager | Authorised Signatory | Contract Observer |
+|--------------------------------------------------------|:-----:|:------:|:------:|
+| Discover contracts where person is **not** invited     | ✖ | ✖ | ✖ |
+| See contract details, AI tabs, audit log               | ✔ | ✔ | ✔ |
+| Upload, edit metadata, invite / revoke participants    | ✔ | ✖ | ✖ |
+| Post / resolve threaded comments                       | ✔ | ✔ | ✖ |
+| Request change during signing                          | ✔ | ✔ | ✖ |
+| Cancel signing & unlock                                | ✔ | ✖ | ✖ |
+| Sign (if it is that person's turn in the sequence)     | ✔¹ | ✔ | ✖ |
+| Download original or signed PDF                        | ✔ | ✔ | ✔ |
+| Renew / clone after expiry                             | ✔ | ✖ | ✖ |
+
+¹ Contract Manager is always the final counter-signer and therefore signs last.
+
+## Contract Lifecycle
+
+### End-to-End Process
+
+0. **Draft** Contract Manager uploads V1 → AI runs (clauses, risk, embeddings) → status **Draft**  
+1. **Invite** Contract Manager sets ordered signers (+ auto-added counter-signature) & optional viewers.  
+   Status switches to **Awaiting Signatures**; current version becomes **Locked**.  
+2. **Review** Each Authorised Signatory opens the document, browses AI tabs, leaves comments, then either  
+   a) clicks **Sign** (if satisfied) or b) **Request Change** (status → Needs Revision).  
+3. **Revision** Contract Manager uploads V N+1; AI runs diff against previous; invites re-issued.  
+4. **Signature Sequence** Buttons enable strictly by signing order until Contract Manager countersigns.  
+5. **Signed** Final PDF sealed, audit log closed, version remains immutable forever.  
+6. **Expiry Countdown** 30 days before `expires_at` status → Expiring Soon; banner + e-mails.  
+7. **Expired** Read-only; Contract Manager may click **Renew** ⇒ upload new version and restart flow.
+
+## AI Features
+
+All four AI features are pre-computed when a version locks, so opening a tab is instant.
+
+### Available AI Tabs
+
+1. **Clauses** Table of extracted key clauses. Selecting one scroll-highlights PDF text.  
+2. **Risk** Sidebar lists risky passages; hover reveals red boxes on the page.  
+3. **Diff** Appears when ≥ 2 versions; three-bullet natural-language summary + color diff.  
+4. **Chat** RAG chatbot ("Ask anything about this contract").  
+
+### AI Chat Features
+- Available to Contract Managers, Authorised Signatories, Contract Observers.  
+- Soft quota = 2,000 tokens / user / contract / day → UI input greys out on limit.
+
+## Home Screen Experience
+
+### Contract Manager Dashboard
+- Pipeline tiles (Draft, Review, Await Sign, Signed, Expiring)  
+- "My Tasks" table (signatures to collect, pending expirations, change requests)  
+- "Upload Contract" primary button  
+
+### Authorised Signatory Dashboard
+- "Documents Waiting for Me" list — each row shows status badge and **Sign Now / Review** CTA.  
+- All past documents accessible via "History".
+
+### Contract Observer Dashboard
+- Search bar + filter chips  
+- Read-only table of every invited contract with status & quick filter "Expiring Soon".
+
+> **Note:** Every user's dashboard only lists contracts where their `user_id` appears in the contract's access array.
+
+## Commenting & Revision Loop
+
+- Comments live in a side-panel (threaded).  
+- Any Authorised Signatory can "Request Change", freezing the signing process and forcing status **Needs Revision**.  
+- Contract Manager uploads a new version, AI diff re-runs, comments persist, signing sequence restarts.
+
+## View Receipts
+
+### "Who has viewed?" Feature
+
+Each Detail page load posts a debounced "view" event. Contract Managers see:
+
+```
+Authorised Signatory Progress
+  Sam   ✓ signed
+  Sarah ✓ signed
+Contract Observer Progress
+  Vera  👁 viewed 12 Jun 10:07
+  Victor — not yet
+```
+
+## Notifications & Reminders
+
+| Trigger                               | Channel | Recipients |
+|---------------------------------------|---------|------------|
+| Invitation to sign                    | e-mail  | each Authorised Signatory |
+| Invitation to view                    | e-mail  | each Contract Observer |
+| Authorised Signatory requests change                | e-mail + in-app toast | Contract Manager |
+| Change uploaded (new version)         | e-mail + toast | all Authorised Signatories & Contract Observers |
+| Reminder 48 h after invite unsolved   | e-mail  | current Authorised Signatory |
+| All signatures collected              | e-mail + toast | everyone invited |
+| 30 days before expiry                 | e-mail + tile | Contract Manager, Authorised Signatories, Contract Observers |
+| 7 days before expiry                  | e-mail + tile | Contract Manager |
+| On expiry                             | e-mail  | all invited |
+
+> **Note:** Reminders are fixed at the stated cadence for the MVP.
+
+## Locking Rules
+
+| State                 | Can edit text? | Can cancel? | Comment? | AI re-runs on next upload? |
+|-----------------------|---------------|-------------|----------|----------------------------|
+| Draft                 | Contract Manager ✔       | —           | ✔        | —                          |
+| Needs Revision        | Contract Manager uploads new version | — | ✔ | on upload                  |
+| Awaiting Signatures   | ✖             | Contract Manager ✔     | ✔        | —                          |
+| Signed                | ✖ (immutable) | —           | ✖        | clone only                 |
+| Expiring Soon / Expired | ✖           | —           | ✖        | new version when renewed   |
+
+## Re-inviting After Change-Request
+
+• When the Contract Manager uploads a new version (v N+1) after a **Request Change**, the existing participant roster (Contract Managers, Authorised Signatories, Contract Observers) is retained.  
+• For every Authorised Signatory the system sets  
+  - `status` → INVITED  (over-writing SIGNED / WITHDRAWN / previous INVITED)  
+  - `seq`    → unchanged (signing order is preserved)  
+• No manual "add signers" step is required; updated invitation e-mails are sent automatically.  
+• Contract Managers may still add or remove participants before clicking **Re-issue Invites**.  
+• If a signer who had already signed is removed, their signature remains in the audit log of the prior version but they do not appear in v N+1.  
+• Contract Observers are unaffected; they remain on the access list.
+
+Insert the following paragraph verbatim under the “Signed” step of your Product-Requirement Doc.
+
+---
+
+## Additional Signed-State Details
+
+1. **Signature Certificate Generation & Storage**  
+   • Immediately after the final counter-signature is applied, the platform creates a “Signature Certificate” file (JSON + PDF rendition) that contains:  
+      – Contract ID and version number
+      – Ordered list of every signer (name, e-mail, UTC timestamp, IP hash)  
+      – SHA-256 hash of the sealed PDF  
+      – SHA-256 hash of the certificate itself  
+   • Both the sealed PDF and the certificate are written to Supabase Storage under the version folder and flagged **immutable**; subsequent writes are blocked.  
+   • An audit-log entry `CERT_CREATED` is appended with the storage paths for compliance tracking.
+
+2. **Signed-State UI Adjustments**  
+   • Detail page replaces the “Sign” button with two download buttons:  
+      ① Download Sealed PDF ② Download Signature Certificate  
+   • Status chip turns green “SIGNED”; a tooltip explains the document is now immutable.  
+   • Comment threads switch to read-only; a grey banner reads “Comments locked after signature.”  
+   • Chat tab remains visible for historical reference, but its input box is disabled and shows the helper text “Chat disabled — contract is fully signed.”
+
+## AI Pipeline Trigger & Optimisation
+
+### Trigger
+• The full AI pipeline (Clause Extraction, Risk Detection, Embedding/RAG index, Diff Summary) executes **every time a new file version is saved**, whether it is v1, v2, or later.
+
+### Optimisation rules
+1. Clause Extraction and Risk Detection always re-run, but pages whose text hash is identical to the previous version are skipped to save tokens.  
+2. Embeddings are cached by exact text hash; unchanged chunks are reused at zero cost.  
+3. Diff Summary is generated only when a prior locked version exists.
+
+### Cost & UX
+• Daily soft limit: 2 000 tokens per user per contract; backend spend capped at US $5.  
+• While jobs run, each AI tab shows an "AI updating…" badge; a WebSocket `AI_READY` event refreshes the tabs automatically when processing completes.
+
+## Edge Cases
+
+- **Failed AI** → shows banner "AI unavailable; try re-uploading" and unlocks manual flow.  
+- **Quota exceeded** → Chat input disabled only for that user; other tabs unaffected.  
+- **Authorised Signatory declines** → Contract Manager prompted to "Remove Authorised Signatory" or "Upload Revision".  
+- **Contract Manager forgets to counter-sign** → Same 48 h reminder cadence as any Authorised Signatory.
+
+## Post-MVP Roadmap
+
+The following features are deferred for future releases:
+
+- Negotiation red-line comparison in a live DOCX editor  
+- CRM integrations (Salesforce, HubSpot)  
+- Analytics dashboards (cycle time, clause deviation statistics)  
+- True multi-tenant workspaces (org separation)  
+- Granular permission presets (Finance-only, Procurement-only)  
+- Mobile-first responsive redesign
+
+## Feature Completeness
+
+✅ Upload & version history  
+✅ Expiry reminders  
+✅ Role-based access (Contract Manager, Authorised Signatory, Contract Observer)  
+✅ Clause extraction  
+✅ Risk term detection  
+✅ Version comparison & diff summary  
+✅ Contract Q&A chatbot (RAG)  
+✅ E-signature flow  
+✅ Comment / change-request loop  
+✅ View receipts  
+
+**No rubric item is missing.**
+
+## Known Risks
+
+1. **Token budget** — Chat for all roles increases OpenAI cost; guardrails in place but monitor usage.  
+2. **PDF rendering** — risk of annotation mis-alignment; fallback to plain text highlight if it occurs.  
+3. **Time** — multiple flows need to be coded in < 48 h; freeze scope here to meet deadline.
+
+## Development Status
+
+This PRD is now locked.  
+Unless new features are added at a later date, development can begin directly from this document.
+
+---
+

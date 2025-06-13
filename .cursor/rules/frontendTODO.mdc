@@ -1,0 +1,186 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# 🎨 CLM Frontend Implementation To-Do List
+
+---
+
+## 1. Authentication & User Session
+
+- [ ] **Registration Page**
+  - Minimal form: email, password, confirm password
+  - Validation, error display, loading state
+  - Success: redirect to login
+
+- [ ] **Login Page**
+  - Minimal form: email, password, show/hide toggle
+  - Error display, loading state
+  - On success: store JWT, redirect to dashboard
+
+- [ ] **Forgot Password Flow**
+  - Email input, send reset link, confirmation message
+
+- [ ] **Session Management**
+  - Store JWT securely (httpOnly cookie or secure storage)
+  - Auto-logout on expiry, refresh token logic
+
+---
+
+## 2. Navigation & Layout
+
+- [ ] **Top Navigation Bar**
+  - Left: Logo (click = dashboard)
+  - Center: "Contracts" (always highlighted), "Tasks" (red badge for open count)
+  - Right: Profile avatar (dropdown: Settings, Logout)
+  - Minimal, flat, no extra chrome
+
+- [ ] **Page Shell**
+  - Max-width 1280px, centered
+  - Cloud background (#F7F7F7)
+  - 24px vertical rhythm for spacing
+  - Coral (#FF385C) for accents, Ink (#222222) for text/icons
+
+---
+
+## 3. Dashboard & Contract List
+
+- [ ] **Dashboard Tiles**
+  - Draft, Review, Await Sign, Signed, Expiring
+  - Count badges, hover effect, click = filter list
+  - Minimal, card-style, responsive
+
+- [ ] **Contract Table/List**
+  - Columns: Title, Status, Expiry, Parties, Actions
+  - Search bar, filter chips (status, tags)
+  - Row click = contract detail
+
+---
+
+## 4. Contract Detail & Tabs
+
+- [ ] **Contract Header**
+  - Title (editable for CM), status chip, expiry banner, last modified, parties
+  - Action buttons: Upload New Version, Set Signers, Cancel Signing, Sign (contextual)
+
+- [ ] **Tabs Component**
+  - Overview, Versions, Diff, Clauses, Risk, Chat, Comments, Audit
+  - Coral highlight for active, keyboard navigation, responsive collapse
+
+---
+
+## 5. Contract Versioning
+
+- [ ] **Upload Wizard Modal**
+  - Step 1: File select/drag-drop (PDF only)
+  - Step 2: Metadata (title, parties, expiry)
+  - Step 3: Progress bar, success/error state
+
+- [ ] **Versions Tab**
+  - List all versions, upload new (CM only), download links
+  - Select two versions to compare (enables Diff tab)
+
+- [ ] **Diff Tab**
+  - Side-by-side PDF viewer, color-coded changes (green/red)
+  - Synchronized scrolling, jump to next/prev change, zoom controls
+
+---
+
+## 6. AI Add-ons UI
+
+- [ ] **Clauses Tab**
+  - Table: Clause Type, Preview, Page, Confidence
+  - Row click = PDF highlight/scroll
+  - Search/filter, export to CSV/PDF
+
+- [ ] **Risk Tab**
+  - List: Severity badge (Coral/Ink), description, expand for details
+  - Hover/click = PDF overlay highlight
+  - Acknowledge checkbox (AS only)
+
+- [ ] **Chat Tab (RAG Q&A)**
+  - Chat bubbles: user vs AI, timestamps
+  - Input with send, token counter, disabled at quota
+  - Source citations, copy response, chat history
+
+- [ ] **AI Updating Overlay**
+  - Dimmed tabs, spinner, progress %, cancel/retry, error state
+
+---
+
+## 7. Comments & Collaboration
+
+- [ ] **Comments Panel**
+  - Threaded display, indentation for replies
+  - Add comment form (rich text), reply, edit/delete (author only)
+  - Status toggle (CM only), read-only after signing
+  - Search/filter comments
+
+- [ ] **Request-Change Banner**
+  - Visible when comments require action
+  - Action button, count badge, dismiss option
+
+---
+
+## 8. Signing Flow
+
+- [ ] **Sign Modal**
+  - Signature canvas, legal text, "I agree" checkbox
+  - Sign button, preview, clear/cancel
+
+- [ ] **Signed Banner**
+  - Green chip, download sealed PDF/certificate, timestamp, all parties signed
+  - Chat disabled, comments read-only
+
+---
+
+## 9. Notifications & Settings
+
+- [ ] **Notification Bell**
+  - Real-time toast, history panel, mark as read, filter, sound toggle
+
+- [ ] **Settings Page**
+  - Email/real-time notification preferences, theme, language, account management
+
+---
+
+## 10. Expiry & Renewal
+
+- [ ] **Expiry Banner**
+  - Yellow/red for 30/7-day warning, countdown, renew CTA, dismiss
+
+- [ ] **Renew/Clone Menu**
+  - Renew = upload new version, restart flow
+  - Clone as amendment = new contract ID
+
+---
+
+## 11. Responsive & Accessibility
+
+- [ ] **Mobile Layout**
+  - Panels collapse to bottom drawer, touch-friendly
+  - All features accessible on mobile
+
+- [ ] **Accessibility**
+  - Keyboard navigation, ARIA labels, color contrast
+
+---
+
+## 12. Final QA
+
+- [ ] **End-to-End User Journey**
+  - Register, login, dashboard, create/upload, assign, AI, comment, sign, renew, expire
+
+- [ ] **Edge Cases**
+  - Comment deletion, AI failure, quota enforcement, role-based UI
+
+---
+
+**How to use:**  
+- Build and test each feature in order, check it off, then move to the next.
+- This ensures a clean, minimalist, and robust frontend that matches your backend and product vision.
+
+
+

@@ -1,0 +1,170 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# 📝 CLM Backend Implementation To-Do List
+
+---
+
+## 1. User & Authentication
+
+- [ ] **User Registration**
+  - Implement `/auth/register` endpoint
+  - Store user in `users` table (hashed password, unique email)
+  - Test: Register new user, check DB
+
+- [ ] **User Login**
+  - Implement `/auth/login` endpoint
+  - Validate credentials, issue JWT
+  - Test: Login with valid/invalid credentials
+
+- [ ] **JWT Middleware**
+  - Protect all endpoints
+  - Test: Access protected endpoint with/without valid token
+
+---
+
+## 2. Contract Management
+
+- [ ] **Create Contract**
+  - Implement `/contracts` (POST)
+  - Store in `contracts` table
+  - Test: Create contract, check DB
+
+- [ ] **Upload Contract Version**
+  - Implement `/contracts/{id}/versions` (POST)
+  - Store in `contract_versions` (enforce unique version per contract)
+  - Upload file to S3/Supabase, save `file_url`
+  - Test: Upload version, check DB and file storage
+
+- [ ] **Assign Participants**
+  - Implement `/contracts/{id}/participants` (POST)
+  - Store in `contract_participants` (enforce unique per contract/user)
+  - Test: Add CM, AS, CO; check DB
+
+---
+
+## 3. AI Add-ons
+
+- [ ] **Clause Extraction**
+  - Trigger on version lock/upload
+  - Extract text, send to LLM, store result in `ai_tasks` (type='ClauseExtraction')
+  - Test: Upload contract, check `ai_tasks` for result
+
+- [ ] **Risk Term Detection**
+  - Trigger on version lock/upload
+  - Extract text, send to LLM, store result in `ai_tasks` (type='RiskAssessment')
+  - Test: Upload contract, check `ai_tasks` for result
+
+- [ ] **Embedding Generation**
+  - Split text, generate embeddings, store in `embeddings` (enforce unique per version/chunk)
+  - Test: Upload contract, check `embeddings` table
+
+- [ ] **Version Comparison (Diff)**
+  - On new version upload, diff with previous, send to LLM, store in `ai_tasks` (type='Diff')
+  - Test: Upload new version, check `ai_tasks` for diff
+
+- [ ] **RAG Chat (QA Assistant)**
+  - Implement `/ai/chat` (POST)
+  - Embed question, vector search in `embeddings`, send to LLM, store in `ai_tasks` (type='Chat')
+  - Test: Ask question, check answer and citations
+
+---
+
+## 4. Comments & Collaboration
+
+- [ ] **Add Comment**
+  - Implement `/comments` (POST)
+  - Store in `comments` (parent_id for replies)
+  - Test: Add top-level and reply comments, check threading
+
+- [ ] **Delete Comment**
+  - Implement `/comments/{id}` (DELETE)
+  - Deleting parent deletes all replies (ON DELETE CASCADE)
+  - Test: Delete comment, check DB
+
+---
+
+## 5. Notifications
+
+- [ ] **Send Notification**
+  - Insert into `notifications` on key events (invite, comment, AI ready, etc.)
+  - Test: Trigger event, check `notifications` table
+
+- [ ] **Fetch Notifications**
+  - Implement `/notifications` (GET)
+  - Test: Fetch for user, check unread/read logic
+
+---
+
+## 6. Audit Logging
+
+- [ ] **Log Actions**
+  - Insert into `audit_log` for all key actions (creation, signing, AI, etc.)
+  - Test: Perform actions, check `audit_log`
+
+---
+
+## 7. Signing & Status
+
+- [ ] **Sign Contract**
+  - Implement `/contracts/{id}/sign` (POST)
+  - Update `contract_participants.status`, enforce signing order
+  - Test: Sign in order, check DB
+
+- [ ] **Counter-Sign & Seal**
+  - CM counter-signs, update contract/version status to 'Signed'
+  - Generate signature certificate, store in storage, log in `audit_log`
+  - Test: Complete signing, check status, certificate, audit
+
+---
+
+## 8. Expiry & Renewal
+
+- [ ] **Expiry Logic**
+  - System checks expiry, updates status, sends notifications
+  - Test: Set expiry, check status and notifications
+
+- [ ] **Renew Contract**
+  - Implement `/contracts/{id}/renew` (POST)
+  - Upload new version, restart flow
+  - Test: Renew, check new version and flow
+
+---
+
+## 9. Access Control & Edge Cases
+
+- [ ] **Role-Based Access**
+  - Enforce in API and (optionally) RLS
+  - Test: Only allowed roles can perform actions
+
+- [ ] **Token Quota for Chat**
+  - Enforce daily limit per user/contract
+  - Test: Exceed quota, check enforcement
+
+- [ ] **No Duplicates**
+  - DB constraints prevent duplicate versions, AI tasks, embeddings
+  - Test: Try to insert duplicates, check DB rejects
+
+---
+
+## 10. Final QA
+
+- [ ] **Full User Journey**
+  - Register, create contract, upload, assign, AI, comment, sign, renew, expire
+  - Test: End-to-end flow
+
+- [ ] **Edge Cases**
+  - Delete parent comment, check replies
+  - Remove participant, check audit
+  - AI failure, check error handling
+
+---
+
+**How to use:**  
+- Pick a feature, build it, test it, check it off.
+- Move to the next feature only when you’re satisfied.
+- This ensures you never move forward with broken or incomplete logic.
+

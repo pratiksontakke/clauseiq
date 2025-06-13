@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+rules_to_follow
+
+1.don't take decisions on your own
+2.discuss before assuming
+3.if multiple approach tell me why you are using one over other
+4.all backend inside server directory going to deploy on Render
+5.all fronend inside client directory going to deploy on Netlify
+6.follow proper folder stucture for project

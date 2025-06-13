@@ -1,0 +1,112 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Certainly! Here is a **well-structured documentation section** for your four AI-powered add-ons, suitable for inclusion in your technical docs or as a standalone reference.
+
+---
+
+# 🤖 AI-Powered Add-ons: CLM Platform
+
+This platform leverages advanced AI/NLP features to automate and enhance contract review, negotiation, and understanding.  
+Below are the core AI-powered add-ons, their purpose, and a detailed explanation of how each works in your backend.
+
+---
+
+## 1. Clause Extraction
+
+**Purpose:**  
+Automatically extract and categorize key legal clauses (e.g., payment terms, confidentiality, termination) from uploaded contract PDFs.
+
+**How it works:**
+- **Trigger:** When a new contract version is uploaded and locked for review.
+- **Process:**
+  1. The backend extracts text from the PDF.
+  2. The text is sent to a large language model (e.g., GPT-4) with a prompt to identify and label key clauses.
+  3. The model returns a structured list of clauses, each with:
+     - Clause type (e.g., “Payment Terms”)
+     - Clause text
+     - Page/section reference
+     - Confidence score
+  4. The result is stored in the `ai_tasks` table, linked to the contract version.
+- **User Experience:**  
+  - All participants can view extracted clauses in the “Clauses” tab.
+  - Clicking a clause highlights the relevant section in the PDF.
+
+---
+
+## 2. Risk Term Detection
+
+**Purpose:**  
+Automatically flag high-risk, ambiguous, or non-compliant language in contracts to assist legal teams in risk mitigation.
+
+**How it works:**
+- **Trigger:** Runs in parallel with clause extraction when a contract version is locked.
+- **Process:**
+  1. The backend uses the extracted text from the PDF.
+  2. The text is sent to an NLP model (e.g., GPT-3.5/4) with a prompt to identify risky or non-standard terms.
+  3. The model returns a list of risks, each with:
+     - Severity (high/medium/low)
+     - Description
+     - Risky text
+     - Page/section reference
+     - Recommendation
+  4. The result is stored in the `ai_tasks` table, linked to the contract version.
+- **User Experience:**  
+  - Users see a sidebar listing all flagged risks, color-coded by severity.
+  - Hovering or clicking a risk highlights the relevant text in the PDF.
+
+---
+
+## 3. Version Comparison (Diff)
+
+**Purpose:**  
+Summarize and highlight differences between two versions of a contract, making it easy to track changes and their impact.
+
+**How it works:**
+- **Trigger:** When a new version of a contract is uploaded and there is at least one previous version.
+- **Process:**
+  1. The backend extracts text from both the new and previous PDF versions.
+  2. The texts are aligned using a diff algorithm to identify changes.
+  3. The changes are sent to an NLP model (e.g., GPT-3.5/4) to generate a human-readable summary.
+  4. The summary and details are stored in the `ai_tasks` table, linked to the new contract version.
+- **User Experience:**  
+  - The “Diff” tab shows a summary and a color-coded diff view.
+  - Users can click to see the exact changes in the PDF.
+
+---
+
+## 4. Contract QA Assistant (RAG Chat)
+
+**Purpose:**  
+Allow users to ask natural language questions about the contract and receive accurate, context-aware answers.
+
+**How it works:**
+- **Trigger:** Any participant can ask a question in the “Chat” tab for a contract version.
+- **Process:**
+  1. When the contract version is locked, the backend splits the PDF text into chunks and generates vector embeddings for each chunk (stored in the `embeddings` table).
+  2. When a user asks a question, the backend:
+     - Converts the question into an embedding.
+     - Searches the `embeddings` table for the most similar chunks using vector similarity.
+     - Selects the top relevant chunks as context.
+  3. The question and context are sent to a language model (e.g., GPT-3.5/4) to generate an answer.
+  4. The question, answer, and citations are stored in the `ai_tasks` table (type='Chat').
+- **User Experience:**  
+  - The user sees the answer in the chat, with links to the cited contract text.
+  - If the user exceeds their daily token quota, the chat is disabled for that user for the day.
+
+---
+
+## Summary Table
+
+| Feature           | Trigger/Event                | Backend Steps (in order)                                                                                  | Storage Table(s)      | User Experience                                      |
+|-------------------|-----------------------------|-----------------------------------------------------------------------------------------------------------|-----------------------|------------------------------------------------------|
+| Clause Extraction | Version upload/lock          | Extract text → LLM prompt → parse result → store in ai_tasks                                              | ai_tasks              | Clauses tab, clickable highlights in PDF             |
+| Risk Detection    | Version upload/lock          | Extract text → LLM prompt → parse result → store in ai_tasks                                              | ai_tasks              | Risk tab, color-coded, highlights in PDF             |
+| Version Diff      | New version upload           | Extract both texts → align/diff → LLM summary → store in ai_tasks                                         | ai_tasks              | Diff tab, summary and color-coded changes            |
+| QA Assistant (RAG)| User asks question in chat   | Embed question → vector search in embeddings → select top chunks → LLM answer → store in ai_tasks (Chat)  | embeddings, ai_tasks  | Chat tab, answer with citations, token quota enforced|
+
+---
+
+

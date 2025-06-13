@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Virtual environment
+venv/
+
+# Environment variables and secrets
+.env
+.env.*
+server/app/.env
+
+# VSCode and IDE
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node (frontend)
+client/node_modules/
+client/.next/
+client/.env
+
+# Build outputs
+*.log
+*.sqlite3
+*.db
+*.egg-info/
+dist/
+build/
+
+# Test and coverage
+htmlcov/
+.coverage
+.tox/
+.pytest_cache/
+
+# Misc
+*.bak
+*.swp
+*.tmp
+
+# Ignore compiled contracts (if any)
+*.sol.json 

@@ -1,0 +1,140 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Below is the “Final Screen-Flow Document”.  
+Every numbered screen is a concrete page or modal the user can encounter; each bullet states its exact purpose and which roles can view or act.  
+No code, no assumptions—only what is already locked in the PRD, tech-stack, comment-flow, and assignment docs.
+
+------------------------------------------------------------------------
+LEGEND  
+CM = Contract Manager  AS = Authorised Signatory  CO = Contract Observer
+------------------------------------------------------------------------
+
+A. ENTRY & AUTH SCREENS  (ALL ROLES)
+────────────────────────────────────
+00 Landing  
+ • Buttons Log-in / Create Account • Link Help Center
+
+01 Sign-Up  
+ • E-mail + Password • “Create Account” → verification e-mail
+
+02 Verify-Email  
+ • Message “Check your inbox” • Link returns here as confirmed → 04
+
+03 Log-In  
+ • E-mail + Password • Link “Forgot Password?” → reset flow
+
+04 Role Router*  
+ • Reads first accessible contract → routes to 05-CM / 05-AS / 05-CO  
+ (*If user has no contracts yet and is not a CM, shows holding page “No invitations”.)
+
+B. CONTRACT MANAGER FLOW
+────────────────────────────────────
+05-CM Dashboard  
+ Tiles (Draft | Review | Await Sign | Signed | Expiring)  
+ “My Tasks” table                 [Upload Contract]
+
+06 Upload Wizard (modal, 3 steps)  
+ 1 File 2 Metadata 3 Confirm → 07-CM
+
+07-CM Contract Detail (page-scoped)  
+ Header: Title / Status chip / Expiry date  
+ Tabs:  
+   • Overview (clauses list + risk badges after AI)  
+   • Versions (version list; CM can upload new version)  
+   • Diff   (active when ≥2 versions)  
+   • Chat       (RAG Q&A)  
+   • Comments (threaded side-panel)  
+   • Audit      (all events)  
+ Toolbar buttons (conditional): Set Signers, Upload New Version, Cancel Signing, Sign
+
+08 Set Signers Modal  
+ Add/remove AS & CO, order numbers → invites e-mailed
+
+09 Counter-Sign Modal  
+ Signature canvas → sealing routine → 10
+
+10 Signed Confirmation  
+ Green banner Buttons Download Sealed PDF | Download Signature Certificate  
+ Status SIGNED, Chat input disabled, Comments read-only
+
+11 Renew / Clone Menu  
+ Visible on Signed / Expired detail page  
+ • Renew → Upload Wizard (new expiry, v N+1)  
+ • Clone as Amendment → new contract ID (returns to 06)
+
+12 Profile / Settings  
+ Change password, notification prefs, logout.
+
+C. AUTHORISED SIGNATORY FLOW
+────────────────────────────────────
+05-AS “Documents Waiting for Me”  
+ Rows: Title | Counter-party | Status | CTA (Review / Sign)
+
+06 Review & Comment  
+ PDF viewer + side panel (Comments)  
+ Tabs: Document | Versions | Diff | Clauses | Risk | Chat  
+ Buttons: Add Comment, Request Change, Sign (if turn)
+
+07 Sign Modal  
+ Signature canvas → “Signed” toast → 08-AS
+
+08-AS Post-Sign Screen  
+ Badge “Awaiting other signatures” or “Fully signed”  
+ Links Download copy | Return to Dashboard
+
+09 History  
+ Table of all past contracts (signed / cancelled).
+
+D. CONTRACT OBSERVER FLOW
+────────────────────────────────────
+05-CO Observer Dashboard  
+ Search + filter chips (tag, counterparty, status)  
+ Read-only table of accessible contracts
+
+06-CO Read-Only Detail  
+ Same tabs as CM, but all write actions disabled  
+ Download buttons appear when status ≥ Signed.
+
+E. SHARED MODALS / MICRO SCREENS
+────────────────────────────────────
+• Comment Reply pop-in (thread context)  
+• Request-Change confirmation banner  
+• AI-Updating toast until WS `AI_READY`  
+• 30-Day Expiry yellow banner (tiles + detail header)  
+• View-Receipt hover tooltip (👁 timestamp)  
+• Forgot-Password (e-mail entry, reset link)  
+• Email-Verification Failed (resend link)
+
+F. STATE-DRIVEN VISUAL CUES
+────────────────────────────────────
+Status Draft → Grey chip, Upload button active (CM)  
+Status Awaiting Signature → Blue chip, Sign button visible to current AS  
+Status Needs Revision → Orange banner, CM must upload new version  
+Status SIGNED → Green chip, Sealed-PDF & Certificate buttons, inputs locked  
+Status Expiring Soon → Yellow badge on tiles, banner on detail  
+Status EXPIRED → Red chip, Renew button visible to CM
+
+G. PERMISSION QUICK-TABLE (per screen)
+────────────────────────────────────
+| Screen            | CM | AS | CO |
+|-------------------|----|----|----|
+| 05 Dashboard      | ✔  | ✔  | ✔  |
+| 06 Upload Wizard  | ✔  | ✖  | ✖  |
+| 07 Detail Tabs    | RW | RW | R  |
+| Versions tab      | RW | R  | R  |
+| Diff tab          | R  | R  | R  |
+| Chat              | R/W| R/W| R/W|
+| Comments panel    | R/W| R/W| R  |
+| Sign modal        | ✔  | (if turn) | ✖ |
+R = read RW = role-specific write actions
+
+H. MINIMUM SUCCESS PATHS
+────────────────────────────────────
+• **CM happy-path** 00→03→05-CM→06→07-CM→08→09→10  
+• **AS change-request path** email→05-AS→06 (comment + Request Change)→07-CM (upload v2)→06→07 (Sign)→08-AS  
+• **CO audit path** email→03→05-CO→06-CO (view, download)→logout
+
+

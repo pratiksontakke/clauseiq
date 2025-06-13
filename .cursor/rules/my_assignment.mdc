@@ -1,0 +1,121 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 🧠 AI-Augmented Contract Lifecycle Management Platform
+
+## 🚀 Overview
+
+This project is a full-stack, AI-augmented **Contract Lifecycle Management (CLM)** platform inspired by industry leaders like **Ironclad** and **DocuSign CLM**. The platform is designed to assist legal, procurement, and compliance teams in managing the entire lifecycle of enterprise contracts. It emphasizes intelligent automation, ease of use, and scalability.
+
+The project will be developed to fulfill academic assignment requirements, with a strong focus on **evaluation criteria**, ensuring maximum marks upon submission.
+
+---
+
+## 📌 Problem Statement
+
+Legal and procurement teams deal with thousands of contracts across creation, negotiation, execution, and renewal. Manual processing is inefficient, error-prone, and costly. The aim is to build an intelligent CLM system that streamlines workflows and reduces friction in enterprise contract handling.
+
+---
+
+## 🎯 Core Features (100% Coverage for Evaluation)
+
+### 📄 1. Contract Management Interface
+
+* ✅ Upload contracts (PDF, Word formats)
+* ✅ Maintain version history and view comparisons
+* ✅ Set expiry/renewal reminders with notifications (email/real-time)
+* ✅ Role-Based Access Control (Admin, Legal, Viewer)
+* ✅ Track status (Draft, Review, Signed, Expired)
+
+### 📂 2. Document Organization
+
+* ✅ Tag and categorize contracts
+* ✅ Search and filter by metadata (e.g., counterparty, type, dates)
+* ✅ Folder-based grouping and management
+* ✅ Audit trail for every document action
+
+---
+
+## 🤖 AI-Powered Add-Ons (Highest Evaluation Priority)
+
+### 🧠 Clause Extraction
+
+* Uses NLP to extract key clauses like:
+
+  * Payment Terms
+  * Confidentiality
+  * Termination
+
+### 🚨 Risk Term Detection
+
+* NLP models highlight high-risk or ambiguous language
+* Helps legal teams flag and resolve non-compliant terms
+
+### 🔍 Version Comparison
+
+* AI compares different contract versions
+* Auto-generates a summary of changes and differences
+
+### 💬 Contract QA Assistant
+
+* Chat-style assistant to answer user questions like:
+
+  * "When does the agreement expire?"
+  * "What are the payment obligations?"
+
+> ⚙️ All AI components will be developed using modern NLP techniques such as transformers, named entity recognition (NER), and retrieval-augmented generation (RAG).
+
+---
+
+## 📦 Bonus Feature (1 Required – Covered for Maximum Marks)
+
+### ✍️ E-Signature Integration
+
+* Enables secure electronic signing of contracts
+* Streamlined signature flow using API or prebuilt integration
+* Supports sign status tracking and audit logs
+
+---
+
+## 🛠️ Technical Architecture
+
+### 🔧 Tech Stack
+
+* **Frontend**: React.js + TailwindCSS (responsive, modern UI)
+* **Backend**: FastAPI + PostgreSQL
+* **Authentication**: OAuth2 (Google login support)
+* **Storage**: AWS S3-compatible bucket (for file uploads)
+* **Real-time Features**: WebSockets (for reminders and updates)
+* **AI/NLP Libraries**: spaCy, HuggingFace Transformers, LangChain
+
+### 📁 Folder Structure
+
+* `/frontend` - UI components
+* `/backend` - API, DB, AI services
+* `/ai` - Clause extraction, QA assistant, etc.
+* `/docs` - Architecture, design specs
+
+---
+
+## ✅ Evaluation Matrix (Mapped for Maximum Scoring)
+
+| Criteria                              | Status    | Description                                                           |
+| ------------------------------------- | --------- | --------------------------------------------------------------------- |
+| 🔍 Effectiveness of AI/NLP Features   | ✅ Full    | Clause extraction, QA, risk detection, version comparison             |
+| 🧱 Core Features Complete             | ✅ Full    | Contract uploads, versioning, status, reminders, access control       |
+| 🧼 Clean, Modular Code                | ✅ Full    | Component-based frontend, service-based backend with clear separation |
+| 🎨 UI/UX Quality                      | ✅ Full    | Responsive, intuitive, and role-based interfaces                      |
+| 📚 Documentation Quality              | ✅ Full    | README, .env.example, architecture docs, inline code comments         |
+| 🌐 Live Deployed Demo                 | ✅ Target  | To be hosted on Render/Vercel + Railway/PostgreSQL                    |
+| 💡 Creativity in Bonus Implementation | ✅ Partial | E-signature API integration (HelloSign or custom flow)                |
+
+---
+
+This project is developed with the intent of meeting **all core expectations and evaluation criteria** of the assignment. Each feature is purposefully chosen to demonstrate:
+
+* Practical AI application in legal tech
+* Software engineering best practices
+* Solid UX design and scalable architecture
+

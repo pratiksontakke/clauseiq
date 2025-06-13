@@ -1,0 +1,1 @@
+# Integrations with external services (email, notifications, AI, etc.) will go here. 

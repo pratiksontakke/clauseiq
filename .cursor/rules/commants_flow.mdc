@@ -1,0 +1,59 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+### 8. Real-World Walk-Through (Illustrative Scenario)
+
+Contract    “Vendor-X Master Services Agreement”             Version v1 – Draft  
+Roles       • Alex (Authorised Signatory, Vendor)  
+            • Carol (Contract Manager, Legal)  
+            • Omar (Contract Observer, Finance)
+
+1  Alex reviews the PDF, highlights the sentence on **Page 5, Paragraph 2**  
+   “ … payment shall be remitted within **30 days** of invoice … ”  
+   Adds comment: ➊  
+   > “Our policy requires 60 days. Please amend.”
+
+   System:  
+   • Stores page 5 / para 2 / selected text / comment text  
+   • Thread created, status = OPEN  
+   • E-mail + in-app toast sent to Carol
+
+2  Carol opens the side panel, clicks the thread, PDF scrolls & highlights text.  
+   Carol replies ➋:  
+   > “Understood. I can extend to 45 days; 60 exceeds our cash-flow limits.”  
+   System notifies Alex; thread remains OPEN.
+
+3  Alex replies ➌:  
+   > “45 days is acceptable.”  
+   Thread still OPEN.
+
+4  Carol uploads **v2** of the contract with the term changed to “45 days”.  
+   System:  
+   • Runs AI diff, links thread to v2, sets thread status = RESOLVED  
+   • Displays badge “Resolved in v2” next to thread  
+   • Locks thread against further replies  
+   • Notifies Alex and Omar
+
+5  Contract continues through signature sequence. All parties see the full comment history in the Audit tab even after final signature.
+
+---
+
+### 9. Acceptance-Test Matrix
+
+| # | Action / Condition | Expected System Reaction |
+|---|--------------------|--------------------------|
+| 1 | AS adds first comment (page N, para M) | Thread created → status OPEN, CM notified |
+| 2 | CM replies to thread | Reply recorded, AS notified |
+| 3 | Observer attempts to reply | UI blocks action; no DB write |
+| 4 | CM marks thread RESOLVED without new version | Thread status changes, participants notified |
+| 5 | New contract version uploaded while thread OPEN | Thread auto-carries; status `ADDRESSED_IN_vX`; previous replies immutable |
+| 6 | AS tries to add comment after contract status = SIGNED | UI disabled; 409-style error returned |
+| 7 | CM deletes a contract version | Not permitted once comments exist; system returns “Action blocked – audit integrity” |
+| 8 | Large document (200 pages) — jump to comment | PDF scrolls to correct page; highlight visible within 500 ms |
+| 9 | Multiple AS comment same location | Single thread hosts multiple authors; notification fan-out to all participants |
+| 10 | System downtime during comment add | Comment queued locally; retries until 201 CREATED; no duplicate records on retry |
+
+These examples and tests complete the comment-system specification and confirm it aligns with every rule in the PRD, tech-stack doc, and assignment brief.

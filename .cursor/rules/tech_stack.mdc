@@ -1,0 +1,258 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# CLM Platform - Technical Architecture Document
+Version: 2025.1 (Final)
+
+## 1. System Overview
+Our Contract Lifecycle Management (CLM) platform is split into three major components, each optimized for its specific role:
+
+```
+Frontend (UI/UX) ←→ Backend (Logic/AI) ←→ Infrastructure (Data/Storage)
+```
+
+## 2. Technology Choices & Rationale
+
+### 2.1 Frontend Stack
+```
+Vite + React + TypeScript
+├── Shadcn UI + Tailwind (UI components)
+├── TanStack Query (data fetching)
+├── OpenAPI-generated client (type-safe API)
+└── Zustand (state management)
+```
+
+**Why This Stack?**
+- TypeScript prevents runtime errors
+- Vite offers fastest dev experience
+- Component library accelerates UI building
+- Auto-generated API types ensure consistency
+
+### 2.2 Backend Stack
+```
+FastAPI (Python 3.11)
+├── Celery + Redis (job queue)
+├── LangChain (AI orchestration)
+├── OpenAI (GPT-4/3.5)
+└── Supabase SDK (data/auth)
+```
+
+**Why This Stack?**
+- FastAPI: async, auto-docs, type checking
+- Python: rich AI/ML ecosystem
+- Celery: reliable background processing
+- LangChain: structured AI workflows
+
+### 2.3 Infrastructure
+```
+Supabase
+├── Postgres + pgvector (data + embeddings)
+├── Storage (files)
+├── Auth (JWT)
+└── Realtime (updates)
+```
+
+**Why This Stack?**
+- All core services in one platform
+- Built-in row-level security
+- Vector search for AI features
+- Real-time capabilities included
+
+## 3. Core Workflows
+
+### 3.1 Contract Upload & AI Processing
+```mermaid
+sequenceDiagram
+    Frontend->>+API: Upload PDF/DOCX
+    API->>Storage: Save file
+    API->>Queue: Trigger AI jobs
+    Queue->>AI: Process document
+    AI-->>Frontend: Real-time updates
+    AI->>DB: Store results
+```
+
+### 3.2 Signature Flow
+```mermaid
+sequenceDiagram
+    CM->>+System: Upload contract
+    System->>AS: Send invite
+    AS->>System: Review & sign
+    System->>CM: Notify for counter-sign
+    CM->>System: Counter-sign
+    System->>All: Send completion notice
+```
+
+### 3.3 Notification System
+```
+Types:
+├── Email (Resend/SendGrid)
+├── Real-time (Supabase Realtime)
+└── In-app (Dashboard alerts)
+```
+
+## 4. AI Integration
+
+### 4.1 Model Usage
+```
+GPT-4: Clause extraction (highest precision needed)
+GPT-3.5: Risk detection, diff summary, chat
+text-embedding-3-small: RAG/semantic search
+```
+
+### 4.2 AI Pipeline
+```
+1. Text Extraction
+2. Clause Analysis
+3. Risk Detection
+4. Embedding Generation
+5. Diff Summary (if applicable)
+```
+
+## 5. Security Architecture
+
+### 5.1 Authentication
+```
+Supabase Auth
+├── JWT tokens
+├── Role-based access
+└── Row-level security
+```
+
+### 5.2 Data Protection
+```
+- Encrypted at rest
+- Signed storage URLs
+- Version locking
+- Audit logging
+```
+
+## 6. Deployment Architecture
+
+### 6.1 Frontend (Netlify)
+```
+- Static hosting
+- Preview deployments
+- Edge functions
+```
+
+### 6.2 Backend (Render)
+```
+Services:
+├── Web API (FastAPI)
+├── Workers (Celery)
+└── Redis (Queue)
+```
+
+### 6.3 Database (Supabase)
+```
+- Postgres (primary data)
+- pgvector (embeddings)
+- Real-time subscriptions
+```
+
+## 7. Development Workflow
+
+### 7.1 Local Setup
+```bash
+# Frontend
+frontend/
+├── npm install
+└── npm run dev
+
+# Backend
+backend/
+├── python -m venv venv
+├── pip install -r requirements.txt
+├── uvicorn main:app --reload
+└── celery -A worker worker
+```
+
+### 7.2 Environment Configuration
+```
+frontend/.env
+├── VITE_SUPABASE_URL
+├── VITE_SUPABASE_ANON_KEY
+└── VITE_API_URL
+
+backend/.env
+├── OPENAI_API_KEY
+├── SUPABASE_URL
+├── SUPABASE_SERVICE_KEY
+└── REDIS_URL
+```
+
+## 8. Scaling Considerations
+
+### 8.1 Horizontal Scaling
+```
+- API servers (stateless)
+- Celery workers
+- Read replicas
+```
+
+### 8.2 Vertical Scaling
+```
+- Database
+- Redis cache
+- Storage capacity
+```
+
+## 9. Monitoring & Observability
+
+### 9.1 Key Metrics
+```
+Performance:
+├── API response times
+├── AI processing duration
+└── Upload speeds
+
+Business:
+├── Active contracts
+├── Signature completion
+└── AI usage
+
+System:
+├── Error rates
+├── Queue length
+└── Storage usage
+```
+
+## 10. Cost Controls
+
+### 10.1 AI Usage
+```
+- Token caps per user/day
+- Embedding caching
+- Text chunk reuse
+```
+
+### 10.2 Infrastructure
+```
+- Supabase free tier
+- Render free tier
+- Netlify free tier
+```
+
+## 11. Future Considerations
+- Multi-tenant support
+- Advanced analytics
+- Mobile optimization
+- Offline capabilities
+- Integration APIs
+
+This architecture provides:
+1. Clear separation of concerns
+2. Scalable AI processing
+3. Real-time updates
+4. Secure data handling
+5. Cost-effective infrastructure
+6. Developer-friendly workflow
+
+Each component was chosen to optimize for:
+- Development speed
+- Maintainability
+- Scalability
+- Cost efficiency
+- Security
