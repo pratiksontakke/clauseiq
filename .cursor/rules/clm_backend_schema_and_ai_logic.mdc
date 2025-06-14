@@ -666,3 +666,23 @@ execute procedure public.handle_new_user();
 - The `password_hash` is set to `'external_auth'` as a placeholder. Adjust if you want to support password login.
 
 ---
+
+## Supabase Storage Policy Query
+
+To restrict downloads so that **only contract participants** (CM, AS, CO) can access contract PDFs, use the following SQL in your Supabase SQL Editor:
+
+```sql
+create policy "Allow only contract participants to download"
+on storage.objects
+for select
+using (
+  bucket_id = 'contracts'
+  AND exists (
+    select 1 from contract_participants
+    where contract_participants.contract_id = split_part(storage.objects.name, '/', 2)::uuid
+      and contract_participants.user_id = auth.uid()
+  )
+);
+```
+
+
