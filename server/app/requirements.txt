@@ -9,6 +9,11 @@ python-jose[cryptography]  # For JWT handling
 passlib[bcrypt]             # For password hashing (alternative to bcrypt)
 email-validator             # For validating email addresses
 reportlab                   # For PDF generation
+PyMuPDF                     # For PDF text extraction
+langchain                   # For GPT integration
+langchain-community         # Required for chat models
+langchain-openai           # For OpenAI integration
+openai                      # For GPT API access
 
 # Optional/future features
 # aiofiles                  # For async file handling (uploads)

@@ -3,12 +3,14 @@ from fastapi.encoders import jsonable_encoder
 from server.app.models.contracts import ContractCreate, ContractResponse, ContractVersionCreate, ContractVersionResponse, AssignParticipantsRequest, ParticipantResponse, ParticipantCreate
 from server.app.crud.contracts import create_contract, create_contract_version, upsert_participant, remove_participant
 from server.app.utils.auth import verify_jwt
-from typing import Any
+from server.app.tasks.clause_extraction_task import extract_clauses_from_contract
+from typing import Any, Optional
 from enum import Enum
 from datetime import date
-from server.app.core.supabase_client import supabase
+from ..core.supabase_client import supabase
 import os
 from uuid import UUID
+import uuid
 
 router = APIRouter()
 
@@ -40,36 +42,67 @@ async def upload_contract_version(
     file: UploadFile = File(...),
     user: dict = Depends(verify_jwt)
 ):
+    print(f"[DEBUG] Starting contract version upload for contract {id}")
+    print(f"[DEBUG] User ID: {user['sub']}")
+    
     # 1. Check user is Contract Manager for this contract (created_by == user["sub"])
+    print("[DEBUG] Checking if user is Contract Manager...")
     contract = supabase.table("contracts").select("created_by").eq("id", str(id)).single().execute()
+    print(f"[DEBUG] Contract query result: {contract.data}")
     if not contract.data or contract.data["created_by"] != user["sub"]:
         raise HTTPException(status_code=403, detail="Only the Contract Manager can upload versions.")
 
     # 2. Determine next version number
+    print("[DEBUG] Determining next version number...")
     versions_resp = supabase.table("contract_versions").select("version_num").eq("contract_id", str(id)).order("version_num", desc=True).limit(1).execute()
     if versions_resp.data and len(versions_resp.data) > 0:
         next_version = versions_resp.data[0]["version_num"] + 1
     else:
         next_version = 1
+    print(f"[DEBUG] Next version number: {next_version}")
 
     # 3. Upload file to Supabase Storage
+    print("[DEBUG] Reading file contents...")
     contents = await file.read()
     file_path = f"{id}/v{next_version}.pdf"
+    print(f"[DEBUG] Uploading to storage path: {file_path}")
     
-    storage_resp = supabase.storage.from_("contracts").upload(
-        path=file_path,
-        file=contents,
-        file_options={"content-type": file.content_type or "application/pdf"}
-    )
-    if hasattr(storage_resp, "error") and storage_resp.error:
-        raise HTTPException(status_code=500, detail=f"File upload failed: {storage_resp.error}")
+    try:
+        print("[DEBUG] Attempting Supabase storage upload...")
+        storage_resp = supabase.storage.from_("contracts").upload(
+            path=file_path,
+            file=contents,
+            file_options={"content-type": file.content_type or "application/pdf"}
+        )
+        print(f"[DEBUG] Storage upload response: {storage_resp}")
+        if hasattr(storage_resp, "error") and storage_resp.error:
+            print(f"[ERROR] Storage upload failed: {storage_resp.error}")
+            raise HTTPException(status_code=500, detail=f"File upload failed: {storage_resp.error}")
+    except Exception as e:
+        print(f"[ERROR] Storage upload exception: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
+
     file_url = supabase.storage.from_("contracts").get_public_url(file_path)
+    print(f"[DEBUG] Generated public URL: {file_url}")
 
     # 4. Insert row in contract_versions
     try:
+        print("[DEBUG] Creating contract version record...")
         version = create_contract_version(str(id), next_version, file_url, status="Draft")
+        print(f"[DEBUG] Version created: {version}")
+        
+        # 5. Trigger clause extraction task
+        print("[DEBUG] Triggering clause extraction task...")
+        extract_clauses_from_contract.delay(
+            contract_id=str(id),
+            version_id=version["id"],
+            file_url=file_url
+        )
+        print("[DEBUG] Clause extraction task triggered successfully")
+        
         return ContractVersionResponse(**version)
     except Exception as e:
+        print(f"[ERROR] Version creation failed: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/contracts/{id}/participants", response_model=list[ParticipantResponse], status_code=status.HTTP_200_OK)
