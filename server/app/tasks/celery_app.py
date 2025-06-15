@@ -7,6 +7,7 @@ app = Celery(
     include=[
         'server.app.tasks.clause_extraction_task',
         'server.app.tasks.risk_extraction_task',
+        'server.app.tasks.diff_extraction_task',
     ]
 )
 

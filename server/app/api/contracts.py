@@ -5,6 +5,7 @@ from server.app.crud.contracts import create_contract, create_contract_version, 
 from server.app.utils.auth import verify_jwt
 from server.app.tasks.clause_extraction_task import extract_clauses_from_contract
 from server.app.tasks.risk_extraction_task import extract_risks_from_contract
+from server.app.tasks.diff_extraction_task import extract_diff_from_contract
 from typing import Any, Optional
 from enum import Enum
 from datetime import date
@@ -108,6 +109,21 @@ async def upload_contract_version(
             file_url=file_url
         )
         print("[DEBUG] Risk extraction task triggered successfully")
+        # Trigger diff extraction task if there is a previous version
+        if next_version > 1:
+            print("[DEBUG] Triggering diff extraction task...")
+            prev_version_resp = supabase.table("contract_versions").select("id, file_url").eq("contract_id", str(id)).eq("version_num", next_version - 1).single().execute()
+            if prev_version_resp.data:
+                prev_file_url = prev_version_resp.data["file_url"]
+                extract_diff_from_contract.delay(
+                    contract_id=str(id),
+                    version_id=version["id"],
+                    prev_file_url=prev_file_url,
+                    curr_file_url=file_url
+                )
+                print("[DEBUG] Diff extraction task triggered successfully")
+            else:
+                print(f"[ERROR] No previous version found for contract {id} at version_num {next_version - 1}. Diff extraction skipped.")
         return ContractVersionResponse(**version)
     except Exception as e:
         print(f"[ERROR] Version creation failed: {str(e)}")
@@ -212,4 +228,27 @@ async def trigger_risk_assessment(contract_id: str, version_id: str, file_url: s
         extract_risks_from_contract.delay(contract_id, version_id, file_url)
         return {"message": "Risk assessment task triggered", "contract_id": contract_id, "version_id": version_id}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to trigger risk assessment: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Failed to trigger risk assessment: {str(e)}")
+
+@router.post("/contracts/{contract_id}/versions/{current_version_id}/diff")
+async def trigger_diff(
+    contract_id: str,
+    current_version_id: str,
+    previous_version_id: str = Body(..., embed=True)
+):
+    """
+    Manually trigger diff extraction between two contract versions.
+    """
+    try:
+        # Fetch file URLs for both versions
+        curr_version = supabase.table("contract_versions").select("file_url").eq("id", current_version_id).single().execute()
+        prev_version = supabase.table("contract_versions").select("file_url").eq("id", previous_version_id).single().execute()
+        if not curr_version.data or not prev_version.data:
+            raise HTTPException(status_code=404, detail="One or both contract versions not found.")
+        curr_file_url = curr_version.data["file_url"]
+        prev_file_url = prev_version.data["file_url"]
+        # Enqueue the Celery task
+        extract_diff_from_contract.delay(contract_id, current_version_id, prev_file_url, curr_file_url)
+        return {"message": "Diff extraction task triggered", "contract_id": contract_id, "current_version_id": current_version_id, "previous_version_id": previous_version_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to trigger diff extraction: {str(e)}") 

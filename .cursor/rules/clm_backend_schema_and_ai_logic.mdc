@@ -709,3 +709,7 @@ USING (
 ALTER TABLE contract_participants
 ADD CONSTRAINT unique_contract_user UNIQUE (contract_id, user_id);
 ```
+```sql
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_tasks_contract_version_type
+ON ai_tasks (contract_id, version_id, type);
+```

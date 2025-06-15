@@ -14,7 +14,7 @@ Below are the core AI-powered add-ons, their purpose, and a detailed explanation
 
 ---
 
-## 1. Clause Extraction
+## 1. Clause Extraction DONE
 
 **Purpose:**  
 Automatically extract and categorize key legal clauses (e.g., payment terms, confidentiality, termination) from uploaded contract PDFs.
@@ -25,18 +25,18 @@ Automatically extract and categorize key legal clauses (e.g., payment terms, con
   1. The backend extracts text from the PDF.
   2. The text is sent to a large language model (e.g., GPT-4) with a prompt to identify and label key clauses.
   3. The model returns a structured list of clauses, each with:
-     - Clause type (e.g., “Payment Terms”)
+     - Clause type (e.g., "Payment Terms")
      - Clause text
      - Page/section reference
      - Confidence score
   4. The result is stored in the `ai_tasks` table, linked to the contract version.
 - **User Experience:**  
-  - All participants can view extracted clauses in the “Clauses” tab.
+  - All participants can view extracted clauses in the "Clauses" tab.
   - Clicking a clause highlights the relevant section in the PDF.
 
 ---
 
-## 2. Risk Term Detection
+## 2. Risk Term Detection 
 
 **Purpose:**  
 Automatically flag high-risk, ambiguous, or non-compliant language in contracts to assist legal teams in risk mitigation.
@@ -72,7 +72,7 @@ Summarize and highlight differences between two versions of a contract, making i
   3. The changes are sent to an NLP model (e.g., GPT-3.5/4) to generate a human-readable summary.
   4. The summary and details are stored in the `ai_tasks` table, linked to the new contract version.
 - **User Experience:**  
-  - The “Diff” tab shows a summary and a color-coded diff view.
+  - The "Diff" tab shows a summary and a color-coded diff view.
   - Users can click to see the exact changes in the PDF.
 
 ---
@@ -83,7 +83,7 @@ Summarize and highlight differences between two versions of a contract, making i
 Allow users to ask natural language questions about the contract and receive accurate, context-aware answers.
 
 **How it works:**
-- **Trigger:** Any participant can ask a question in the “Chat” tab for a contract version.
+- **Trigger:** Any participant can ask a question in the "Chat" tab for a contract version.
 - **Process:**
   1. When the contract version is locked, the backend splits the PDF text into chunks and generates vector embeddings for each chunk (stored in the `embeddings` table).
   2. When a user asks a question, the backend:
