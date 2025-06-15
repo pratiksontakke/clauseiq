@@ -34,35 +34,18 @@ class ClauseExtractor:
         Extracts key clauses from contract text using GPT.
         Returns a dictionary of clause types and their content.
         """
-        print("[DEBUG] Starting clause extraction")
-        print(f"[DEBUG] Input text length: {len(text)} characters")
-
         try:
-            # Prepare the prompt
-            print("[DEBUG] Preparing GPT prompt...")
             prompt = self._build_extraction_prompt(text)
-            print("[DEBUG] Prompt prepared successfully")
-
-            # Call GPT
-            print("[DEBUG] Calling GPT API...")
             messages = [HumanMessage(content=prompt)]
             response = await self.llm.ainvoke(messages)
-            print("[DEBUG] Received GPT response")
-            print(f"[DEBUG] Raw response: {response.content}")
-
-            # Parse the response
-            print("[DEBUG] Parsing GPT response...")
             try:
                 clauses = self._parse_gpt_response(response.content)
-                print(f"[DEBUG] Parsed {len(clauses['clauses'])} clauses")
-                print(f"[DEBUG] Extracted clauses: {json.dumps(clauses, indent=2)}")
+                # Only log the final parsed JSON output once
+                print(f"[INFO] Final clause extraction JSON output: {json.dumps(clauses, indent=2)}")
                 return clauses
             except Exception as e:
-                print(f"[ERROR] Failed to parse GPT response: {str(e)}")
                 raise e
-
         except Exception as e:
-            print(f"[ERROR] Clause extraction failed: {str(e)}")
             raise e
 
     def _build_extraction_prompt(self, text: str) -> str:

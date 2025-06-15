@@ -4,7 +4,10 @@ app = Celery(
     'clauseiq',
     broker='redis://localhost:6379/0',
     backend='redis://localhost:6379/0',
-    include=['server.app.tasks.clause_extraction_task']
+    include=[
+        'server.app.tasks.clause_extraction_task',
+        'server.app.tasks.risk_extraction_task',
+    ]
 )
 
 # Configure Celery

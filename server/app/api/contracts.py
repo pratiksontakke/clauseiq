@@ -4,6 +4,7 @@ from server.app.models.contracts import ContractCreate, ContractResponse, Contra
 from server.app.crud.contracts import create_contract, create_contract_version, upsert_participant, remove_participant
 from server.app.utils.auth import verify_jwt
 from server.app.tasks.clause_extraction_task import extract_clauses_from_contract
+from server.app.tasks.risk_extraction_task import extract_risks_from_contract
 from typing import Any, Optional
 from enum import Enum
 from datetime import date
@@ -99,7 +100,14 @@ async def upload_contract_version(
             file_url=file_url
         )
         print("[DEBUG] Clause extraction task triggered successfully")
-        
+        # Trigger risk extraction task
+        print("[DEBUG] Triggering risk extraction task...")
+        extract_risks_from_contract.delay(
+            contract_id=str(id),
+            version_id=version["id"],
+            file_url=file_url
+        )
+        print("[DEBUG] Risk extraction task triggered successfully")
         return ContractVersionResponse(**version)
     except Exception as e:
         print(f"[ERROR] Version creation failed: {str(e)}")
@@ -193,3 +201,15 @@ def delete_participant(
 
     remove_participant(str(id), str(user_id))
     return 
+
+@router.post("/contracts/{contract_id}/versions/{version_id}/risk-assessment")
+async def trigger_risk_assessment(contract_id: str, version_id: str, file_url: str = Body(..., embed=True)):
+    """
+    Manually trigger risk assessment for a contract version.
+    """
+    try:
+        # Enqueue the Celery task (runs in background)
+        extract_risks_from_contract.delay(contract_id, version_id, file_url)
+        return {"message": "Risk assessment task triggered", "contract_id": contract_id, "version_id": version_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to trigger risk assessment: {str(e)}") 
