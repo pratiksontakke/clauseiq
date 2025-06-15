@@ -1,0 +1,174 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Clause Extraction – Final Implementation Blueprint
+
+---
+
+## 1. **What, Why, When**
+
+- **What:** Extract and categorize key legal clauses from contract PDFs using OpenAI GPT-4, store results in `ai_tasks` for each contract version.
+- **Why:** Automate legal review, enable instant clause lookup, and power downstream AI features.
+- **When:**  
+  - **Automatically:** On every contract version upload/lock (`contract_versions.status = 'Locked'`).
+  - **Manually:** User can re-trigger extraction via UI/API.
+
+---
+
+## 2. **Tech Stack & Libraries**
+
+- **Backend:** Python 3.11+, FastAPI, Celery, Supabase/Postgres, Supabase Storage
+- **AI/NLP:** OpenAI GPT-4 (best-in-class for legal text)
+- **PDF Extraction:** PyMuPDF (fitz) for fast, per-page, reliable extraction
+
+---
+
+## 3. **Database Schema (Key Tables)**
+
+- **contract_versions:** Tracks each contract version, file, and status.
+- **ai_tasks:** Stores all AI jobs/results, including clause extraction.
+
+---
+
+## 4. **Logic & Flow – Every Step**
+
+### **A. Triggering**
+
+1. **Automatic:**  
+   - On new `contract_versions` row with `status='Locked'`, backend enqueues a Celery clause extraction task.
+2. **Manual:**  
+   - User triggers via UI/API; backend enqueues the same Celery task.
+
+---
+
+### **B. Preparation**
+
+3. **Fetch PDF:**  
+   - Celery worker downloads PDF from Supabase Storage using `file_url`.
+
+4. **Extract Text:**  
+   - Use PyMuPDF to extract text for each page: `{page_num: text}`.
+
+---
+
+### **C. Handling Large Contracts**
+
+5. **If contract is too large for GPT-4 token limit:**  
+   - **Summarize:**  
+     - Use PyMuPDF to extract and concatenate text.
+     - Summarize the contract (e.g., by section or page) to fit within GPT-4’s context window.
+     - Only send the summary to GPT-4 for clause extraction.
+   - **Dynamic Decision:**  
+     - If total text tokens > GPT-4 limit, summarize; else, send full text.
+
+---
+
+### **D. LLM Prompting**
+
+6. **Build Prompt:**  
+   - Use a version-controlled template:  
+     - “Extract and categorize all key legal clauses from this contract. For each clause, return: type, clause text, page number, and a confidence score between 0 and 1. Output as a JSON array.”
+   - Set temperature low (0.2) for deterministic output.
+
+7. **Call OpenAI GPT-4:**  
+   - Send prompt + (full or summarized) contract text.
+
+---
+
+### **E. Parsing & Validation**
+
+8. **Parse LLM Output:**  
+   - Expect JSON:  
+     ```json
+     {
+       "clauses": [
+         {
+           "type": "Payment Terms",
+           "text": "...",
+           "page": 5,
+           "confidence": 0.98
+         }
+       ]
+     }
+     ```
+   - Validate all required fields.
+
+---
+
+### **F. Storing Results**
+
+9. **Insert/Update in ai_tasks:**  
+   - Insert or update row in `ai_tasks` with:
+     - `contract_id`, `version_id`, `type='ClauseExtraction'`, `status='Completed'`, `result=JSON`
+   - Enforce uniqueness per contract/version/type.
+
+---
+
+### **G. Notifying Frontend**
+
+10. **Emit Event:**  
+    - Use Supabase Realtime or WebSocket to emit “AI_READY” for this contract version.
+
+---
+
+### **H. User Experience**
+
+11. **Clauses Tab:**  
+    - User sees table of extracted clauses (type, preview, page, confidence).
+    - Clicking a row scrolls/highlights the clause in the PDF viewer.
+
+---
+
+## 5. **Edge Cases & Error Handling**
+
+- **PDF Corrupted/Unreadable:**  
+  - Mark task as `Failed`, notify user.
+- **LLM API Fails/Timeouts:**  
+  - Retry with exponential backoff; if still fails, mark as `Failed`, notify user.
+- **Malformed LLM Output:**  
+  - Attempt to re-parse or re-prompt; if still invalid, mark as `Failed`.
+- **No Clauses Found:**  
+  - Store empty result, show “No clauses detected” in UI.
+- **Duplicate Task:**  
+  - Enforce unique constraint in `ai_tasks`.
+- **User Deletes Version Before Completion:**  
+  - Cancel task and clean up.
+
+---
+
+## 6. **Latency Expectation**
+
+- **Best Practice:**  
+  - Target end-to-end latency (from upload/lock to AI_READY event) of **<60 seconds** for typical contracts (up to 50 pages).
+  - For very large contracts (requiring summarization), allow up to **2-3 minutes**.
+  - Always show a progress/loading indicator in the UI during processing.
+
+---
+
+## 7. **User Example (End-to-End)**
+
+1. **Carol uploads and locks a contract version.**
+2. System stores the file, marks version as ‘Locked’, triggers clause extraction.
+3. Celery worker downloads PDF, extracts text per page.
+4. If contract is too large, summarizes text to fit GPT-4’s context window.
+5. Worker sends prompt + (full or summarized) text to GPT-4.
+6. GPT-4 returns JSON with clauses.
+7. Worker stores result in `ai_tasks`.
+8. System emits “AI_READY” event.
+9. Carol opens Clauses tab, sees extracted clauses, clicks to highlight in PDF.
+
+---
+
+## 8. **Why This Approach?**
+
+- **OpenAI GPT-4:** Best accuracy for legal text, robust for clause extraction.
+- **PyMuPDF:** Fast, reliable, per-page extraction for precise UI mapping.
+- **Summarization for Large Docs:** Ensures no contract is skipped due to token limits.
+- **Async Processing:** Keeps API responsive, scales with Celery workers.
+- **No Raw Text Storage:** Reduces storage cost and privacy risk.
+- **Latency:** <60s for most, up to 2-3min for very large docs, always with user feedback.
+
+
+
