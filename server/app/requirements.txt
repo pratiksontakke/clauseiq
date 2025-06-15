@@ -8,6 +8,7 @@ supabase
 python-jose[cryptography]  # For JWT handling
 passlib[bcrypt]             # For password hashing (alternative to bcrypt)
 email-validator             # For validating email addresses
+reportlab                   # For PDF generation
 
 # Optional/future features
 # aiofiles                  # For async file handling (uploads)

@@ -666,3 +666,46 @@ execute procedure public.handle_new_user();
 - The `password_hash` is set to `'external_auth'` as a placeholder. Adjust if you want to support password login.
 
 ---
+
+## Create a new bucket:
+   - Go to Supabase Dashboard
+   - Click "Storage"
+   - Click "Create a new bucket"
+   - Name: `contracts`
+   - Set to **PRIVATE**
+   - Click "Create bucket"
+
+3. Create new policies (run in Supabase SQL editor):
+```sql
+-- Policy 1: Allow contract managers to upload files
+CREATE POLICY "Enable upload for contract managers"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (
+    bucket_id = 'contracts' AND
+    EXISTS (
+        SELECT 1 FROM contract_participants cp
+        WHERE cp.contract_id = split_part(storage.objects.name, '/', 2)::uuid
+        AND cp.user_id = auth.uid()
+        AND cp.role = 'CM'
+    )
+);
+
+-- Policy 2: Allow contract participants to read files
+CREATE POLICY "Enable read access for contract participants"
+ON storage.objects FOR SELECT
+TO authenticated
+USING (
+    bucket_id = 'contracts' AND
+    EXISTS (
+        SELECT 1 FROM contract_participants cp
+        WHERE cp.contract_id = split_part(storage.objects.name, '/', 2)::uuid
+        AND cp.user_id = auth.uid()
+    )
+);
+```
+
+```sql
+ALTER TABLE contract_participants
+ADD CONSTRAINT unique_contract_user UNIQUE (contract_id, user_id);
+```
