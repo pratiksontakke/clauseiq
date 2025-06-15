@@ -1,16 +1,22 @@
-from fastapi import APIRouter, HTTPException, Depends, status, Request, UploadFile, File, Form, Body
+from fastapi import APIRouter, HTTPException, Depends, status, Request, UploadFile, File, Form, Body, BackgroundTasks
 from fastapi.encoders import jsonable_encoder
 from server.app.models.contracts import ContractCreate, ContractResponse, ContractVersionCreate, ContractVersionResponse, AssignParticipantsRequest, ParticipantResponse, ParticipantCreate
 from server.app.crud.contracts import create_contract, create_contract_version, upsert_participant, remove_participant
 from server.app.utils.auth import verify_jwt
-from typing import Any
+from typing import Any, Optional
 from enum import Enum
 from datetime import date
 from server.app.core.supabase_client import supabase
 import os
 from uuid import UUID
+from ..models.clause_extraction import AITaskResponse
+from ..crud.ai_tasks import get_ai_task
+from ..tasks.clause_extraction import process_clause_extraction
+from ..core.supabase_client import supabase_client
+import logging
 
-router = APIRouter()
+router = APIRouter(prefix="/contracts", tags=["contracts"])
+logger = logging.getLogger(__name__)
 
 @router.post("/contracts", response_model=ContractResponse, status_code=status.HTTP_201_CREATED)
 def create_contract_endpoint(
@@ -34,43 +40,121 @@ def create_contract_endpoint(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/contracts/{id}/versions", response_model=ContractVersionResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/{contract_id}/versions")
 async def upload_contract_version(
-    id: UUID, # contract id
+    contract_id: UUID,
     file: UploadFile = File(...),
-    user: dict = Depends(verify_jwt)
+    background_tasks: BackgroundTasks = None
 ):
-    # 1. Check user is Contract Manager for this contract (created_by == user["sub"])
-    contract = supabase.table("contracts").select("created_by").eq("id", str(id)).single().execute()
-    if not contract.data or contract.data["created_by"] != user["sub"]:
-        raise HTTPException(status_code=403, detail="Only the Contract Manager can upload versions.")
-
-    # 2. Determine next version number
-    versions_resp = supabase.table("contract_versions").select("version_num").eq("contract_id", str(id)).order("version_num", desc=True).limit(1).execute()
-    if versions_resp.data and len(versions_resp.data) > 0:
-        next_version = versions_resp.data[0]["version_num"] + 1
-    else:
-        next_version = 1
-
-    # 3. Upload file to Supabase Storage
-    contents = await file.read()
-    file_path = f"{id}/v{next_version}.pdf"
-    
-    storage_resp = supabase.storage.from_("contracts").upload(
-        path=file_path,
-        file=contents,
-        file_options={"content-type": file.content_type or "application/pdf"}
-    )
-    if hasattr(storage_resp, "error") and storage_resp.error:
-        raise HTTPException(status_code=500, detail=f"File upload failed: {storage_resp.error}")
-    file_url = supabase.storage.from_("contracts").get_public_url(file_path)
-
-    # 4. Insert row in contract_versions
+    """
+    Upload a new contract version and trigger clause extraction.
+    """
     try:
-        version = create_contract_version(str(id), next_version, file_url, status="Draft")
-        return ContractVersionResponse(**version)
+        if not file.filename.lower().endswith('.pdf'):
+            raise HTTPException(status_code=400, detail="Only PDF files are supported")
+            
+        # Get next version number
+        response = supabase_client.table("contract_versions").select("version_num").match({
+            "contract_id": str(contract_id)
+        }).order("version_num.desc").limit(1).execute()
+        
+        next_version = 1
+        if response.data:
+            next_version = response.data[0]["version_num"] + 1
+            
+        # Upload file to Supabase Storage
+        file_path = f"{contract_id}/v{next_version}.pdf"
+        storage_response = supabase_client.storage.from_("contracts").upload(
+            file_path,
+            file.file.read(),
+            file_options={"content-type": "application/pdf"}
+        )
+        
+        if not storage_response.data:
+            raise HTTPException(status_code=500, detail="Failed to upload file")
+            
+        # Get public URL
+        file_url = supabase_client.storage.from_("contracts").get_public_url(file_path)
+        
+        # Create contract version
+        version_response = supabase_client.table("contract_versions").insert({
+            "contract_id": str(contract_id),
+            "version_num": next_version,
+            "file_url": file_url,
+            "status": "Draft"
+        }).execute()
+        
+        if not version_response.data:
+            raise HTTPException(status_code=500, detail="Failed to create contract version")
+            
+        version_id = version_response.data[0]["id"]
+        
+        # Trigger clause extraction
+        background_tasks.add_task(
+            process_clause_extraction,
+            contract_id=str(contract_id),
+            version_id=version_id,
+            file_url=file_url
+        )
+        
+        return {"message": "Contract version uploaded successfully", "version_id": version_id}
+        
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"Error uploading contract version: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/{contract_id}/versions/{version_id}/clause-extraction")
+async def trigger_clause_extraction(
+    contract_id: UUID,
+    version_id: UUID,
+    background_tasks: BackgroundTasks
+):
+    """
+    Manually trigger clause extraction for a contract version.
+    """
+    try:
+        # Get contract version
+        response = supabase_client.table("contract_versions").select("*").match({
+            "id": str(version_id),
+            "contract_id": str(contract_id)
+        }).execute()
+        
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Contract version not found")
+            
+        version = response.data[0]
+        
+        # Trigger clause extraction
+        background_tasks.add_task(
+            process_clause_extraction,
+            contract_id=str(contract_id),
+            version_id=str(version_id),
+            file_url=version["file_url"]
+        )
+        
+        return {"message": "Clause extraction started"}
+        
+    except Exception as e:
+        logger.error(f"Error triggering clause extraction: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/contracts/{contract_id}/versions/{version_id}/clauses")
+async def get_clauses(
+    contract_id: UUID,
+    version_id: UUID
+) -> AITaskResponse:
+    """
+    Get clause extraction results for a contract version.
+    """
+    try:
+        result = await get_ai_task(contract_id, version_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="Clause extraction not found")
+        return result
+
+    except Exception as e:
+        logger.error(f"Error in get_clauses: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/contracts/{id}/participants", response_model=list[ParticipantResponse], status_code=status.HTTP_200_OK)
 def assign_participants(

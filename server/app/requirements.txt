@@ -1,10 +1,10 @@
 # Core dependencies
-fastapi
+fastapi>=0.68.0
 uvicorn[standard]
 asyncpg
 bcrypt
-python-dotenv
-supabase
+python-dotenv>=0.19.0
+supabase>=1.0.0
 python-jose[cryptography]  # For JWT handling
 passlib[bcrypt]             # For password hashing (alternative to bcrypt)
 email-validator             # For validating email addresses
@@ -17,4 +17,11 @@ reportlab                   # For PDF generation
 
 # Testing
 pytest
-httpx[cli] 
+httpx[cli]
+
+# Additional dependencies
+celery>=5.2.3
+PyMuPDF>=1.19.0  # for PDF text extraction
+openai>=1.0.0    # for GPT-4 API
+pydantic>=2.0.0
+redis>=4.0.0     # for Celery broker 
