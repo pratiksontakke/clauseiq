@@ -713,3 +713,40 @@ ADD CONSTRAINT unique_contract_user UNIQUE (contract_id, user_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_tasks_contract_version_type
 ON ai_tasks (contract_id, version_id, type);
 ```
+
+```sql
+create or replace function match_chunks(
+    contract_version_id uuid,
+    match_count int,
+    query_embedding vector(1536)
+) returns table (
+    id uuid,
+    contract_id uuid,
+    version_id uuid,
+    chunk_id text,
+    text text,
+    page_num int,
+    similarity float
+)
+language plpgsql
+as $$
+begin
+    return query
+    select
+        e.id,
+        e.contract_id,
+        e.version_id,
+        e.chunk_id,
+        e.text,
+        e.page_num,
+        1 - (e.embedding <=> query_embedding) as similarity
+    from
+        embeddings e
+    where
+        e.version_id = contract_version_id
+    order by
+        e.embedding <=> query_embedding
+    limit match_count;
+end;
+$$;
+```

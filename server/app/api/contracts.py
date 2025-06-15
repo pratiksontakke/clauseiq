@@ -6,6 +6,7 @@ from server.app.utils.auth import verify_jwt
 from server.app.tasks.clause_extraction_task import extract_clauses_from_contract
 from server.app.tasks.risk_extraction_task import extract_risks_from_contract
 from server.app.tasks.diff_extraction_task import extract_diff_from_contract
+from server.app.tasks.embedding_task import generate_embeddings_for_contract
 from typing import Any, Optional
 from enum import Enum
 from datetime import date
@@ -13,6 +14,10 @@ from ..core.supabase_client import supabase
 import os
 from uuid import UUID
 import uuid
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -44,74 +49,67 @@ async def upload_contract_version(
     file: UploadFile = File(...),
     user: dict = Depends(verify_jwt)
 ):
-    print(f"[DEBUG] Starting contract version upload for contract {id}")
-    print(f"[DEBUG] User ID: {user['sub']}")
+    logger.info(f"Starting contract version upload for contract {id}")
     
     # 1. Check user is Contract Manager for this contract (created_by == user["sub"])
-    print("[DEBUG] Checking if user is Contract Manager...")
     contract = supabase.table("contracts").select("created_by").eq("id", str(id)).single().execute()
-    print(f"[DEBUG] Contract query result: {contract.data}")
     if not contract.data or contract.data["created_by"] != user["sub"]:
         raise HTTPException(status_code=403, detail="Only the Contract Manager can upload versions.")
 
     # 2. Determine next version number
-    print("[DEBUG] Determining next version number...")
     versions_resp = supabase.table("contract_versions").select("version_num").eq("contract_id", str(id)).order("version_num", desc=True).limit(1).execute()
     if versions_resp.data and len(versions_resp.data) > 0:
         next_version = versions_resp.data[0]["version_num"] + 1
     else:
         next_version = 1
-    print(f"[DEBUG] Next version number: {next_version}")
 
     # 3. Upload file to Supabase Storage
-    print("[DEBUG] Reading file contents...")
     contents = await file.read()
     file_path = f"{id}/v{next_version}.pdf"
-    print(f"[DEBUG] Uploading to storage path: {file_path}")
     
     try:
-        print("[DEBUG] Attempting Supabase storage upload...")
         storage_resp = supabase.storage.from_("contracts").upload(
             path=file_path,
             file=contents,
             file_options={"content-type": file.content_type or "application/pdf"}
         )
-        print(f"[DEBUG] Storage upload response: {storage_resp}")
         if hasattr(storage_resp, "error") and storage_resp.error:
-            print(f"[ERROR] Storage upload failed: {storage_resp.error}")
+            logger.error(f"Storage upload failed: {storage_resp.error}")
             raise HTTPException(status_code=500, detail=f"File upload failed: {storage_resp.error}")
     except Exception as e:
-        print(f"[ERROR] Storage upload exception: {str(e)}")
+        logger.error(f"Storage upload exception: {str(e)}")
         raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
 
     file_url = supabase.storage.from_("contracts").get_public_url(file_path)
-    print(f"[DEBUG] Generated public URL: {file_url}")
 
     # 4. Insert row in contract_versions
     try:
-        print("[DEBUG] Creating contract version record...")
         version = create_contract_version(str(id), next_version, file_url, status="Draft")
-        print(f"[DEBUG] Version created: {version}")
         
-        # 5. Trigger clause extraction task
-        print("[DEBUG] Triggering clause extraction task...")
+        # 5. Trigger AI tasks
+        # Generate embeddings
+        generate_embeddings_for_contract.delay(
+            contract_id=str(id),
+            version_id=version["id"],
+            file_url=file_url
+        )
+        
+        # Extract clauses
         extract_clauses_from_contract.delay(
             contract_id=str(id),
             version_id=version["id"],
             file_url=file_url
         )
-        print("[DEBUG] Clause extraction task triggered successfully")
-        # Trigger risk extraction task
-        print("[DEBUG] Triggering risk extraction task...")
+        
+        # Extract risks
         extract_risks_from_contract.delay(
             contract_id=str(id),
             version_id=version["id"],
             file_url=file_url
         )
-        print("[DEBUG] Risk extraction task triggered successfully")
-        # Trigger diff extraction task if there is a previous version
+        
+        # Generate diff if there is a previous version
         if next_version > 1:
-            print("[DEBUG] Triggering diff extraction task...")
             prev_version_resp = supabase.table("contract_versions").select("id, file_url").eq("contract_id", str(id)).eq("version_num", next_version - 1).single().execute()
             if prev_version_resp.data:
                 prev_file_url = prev_version_resp.data["file_url"]
@@ -121,12 +119,11 @@ async def upload_contract_version(
                     prev_file_url=prev_file_url,
                     curr_file_url=file_url
                 )
-                print("[DEBUG] Diff extraction task triggered successfully")
             else:
-                print(f"[ERROR] No previous version found for contract {id} at version_num {next_version - 1}. Diff extraction skipped.")
+                logger.error(f"No previous version found for contract {id} at version_num {next_version - 1}. Diff extraction skipped.")
         return ContractVersionResponse(**version)
     except Exception as e:
-        print(f"[ERROR] Version creation failed: {str(e)}")
+        logger.error(f"Version creation failed: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/contracts/{id}/participants", response_model=list[ParticipantResponse], status_code=status.HTTP_200_OK)

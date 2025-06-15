@@ -165,6 +165,6 @@ alwaysApply: true
 
 **How to use:**  
 - Pick a feature, build it, test it, check it off.
-- Move to the next feature only when you’re satisfied.
+- Move to the next feature only when you're satisfied.
 - This ensures you never move forward with broken or incomplete logic.
 
