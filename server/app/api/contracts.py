@@ -62,7 +62,22 @@ def create_contract_endpoint(
         # Extract JWT from Authorization header
         user_jwt = request.headers.get("authorization", "").replace("Bearer ", "")
         created = create_contract(contract_data, user_jwt=user_jwt)
+        created["role"] = "CM"
         contract_obj = ContractResponse(**created)
+
+        if not created or "id" not in created:
+            raise HTTPException(status_code=500, detail="Contract created but ID not returned")
+            
+        contract_id = created["id"]
+        
+        # 2. Add the creator as a CM participant
+        upsert_participant(
+            contract_id=contract_id,
+            user_id=user["sub"],
+            role="CM",
+            signing_order=1
+        )
+
         return contract_obj
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

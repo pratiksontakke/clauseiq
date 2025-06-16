@@ -91,12 +91,8 @@ export const contracts = {
     return response.data;
   },
 
-  create: async (formData: FormData): Promise<Contract> => {
-    const response = await api.post<Contract>('/contracts', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+  create: async (data: any): Promise<Contract> => {
+    const response = await api.post<Contract>('/contracts', data);
     return response.data;
   },
 
@@ -116,6 +112,11 @@ export const contracts = {
 
   sign: async (id: string, signature: string): Promise<Contract> => {
     const response = await api.post<Contract>(`/api/contracts/${id}/sign`, { signature });
+    return response.data;
+  },
+
+  addParticipants: async (id: string, participants: any[]) => {
+    const response = await api.post(`/contracts/${id}/participants`, { participants });
     return response.data;
   },
 };

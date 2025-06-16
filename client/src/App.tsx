@@ -11,6 +11,7 @@ const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'));
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
 const ContractDetailPage = lazy(() => import('./pages/contracts/ContractDetailPage'));
+const NewContractPage = lazy(() => import('./pages/contracts/NewContractPage'));
 
 // Create Query Client
 const queryClient = new QueryClient({
@@ -60,6 +61,7 @@ function App() {
                 }
               >
                 <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/contracts/new" element={<NewContractPage />} />
                 <Route path="/contracts/:id" element={<ContractDetailPage />} />
               </Route>
 
