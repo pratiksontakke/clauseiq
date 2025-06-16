@@ -1,21 +1,41 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { contracts } from '../../services/api';
 import Button from '../../components/ui/Button';
 import type { ContractDetail, ContractStatus, AITaskStatus, AITaskType } from '../../types/api';
 import { ContractChat } from '../../components/ContractChat';
+import { UploadVersionModal } from '../../components/UploadVersionModal';
 
 const ContractDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
   const [showAllVersions, setShowAllVersions] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   const { data: contract, isLoading } = useQuery<ContractDetail>({
     queryKey: ['contract', id],
     queryFn: () => contracts.getDetails(id!),
     enabled: !!id,
   });
+
+  // When contract data changes, check if we should show analysis
+  useEffect(() => {
+    if (contract) {
+      const latestVersion = [...contract.versions].sort((a, b) => b.version_num - a.version_num)[0];
+      const tasks = contract.ai_tasks[latestVersion.id] || {};
+      
+      // If clause analysis is complete and no analysis is selected, show it
+      if (tasks.ClauseExtraction?.status === 'Completed' && !selectedAnalysis) {
+        setSelectedAnalysis('ClauseExtraction');
+      }
+    }
+  }, [contract]);
+
+  const handleAnalysisComplete = () => {
+    // Reset selected analysis - it will be set by the useEffect when data reloads
+    setSelectedAnalysis(null);
+  };
 
   if (isLoading) {
     return (
@@ -85,17 +105,17 @@ const ContractDetailPage = () => {
   const getTaskIcon = (taskType: AITaskType) => {
     switch (taskType) {
       case 'ClauseExtraction':
-        return '📄';
+        return '📋';
       case 'RiskAssessment':
         return '⚠️';
       case 'Embedding':
-        return '🔄';
+        return '🔍';
       case 'Diff':
         return '📊';
       case 'Chat':
         return '💬';
       default:
-        return '🔍';
+        return '📄';
     }
   };
 
@@ -103,13 +123,13 @@ const ContractDetailPage = () => {
   const getTaskDisplayName = (taskType: AITaskType) => {
     switch (taskType) {
       case 'ClauseExtraction':
-        return 'Clause Analysis';
+        return 'Key Clauses';
       case 'RiskAssessment':
-        return 'Risk Assessment';
+        return 'Risk Analysis';
       case 'Embedding':
-        return 'Document Embedding';
+        return 'Smart Search';
       case 'Diff':
-        return 'Version Comparison';
+        return 'Version Diff';
       case 'Chat':
         return 'Chat Analysis';
       default:
@@ -223,13 +243,13 @@ const ContractDetailPage = () => {
   };
 
   return (
-    <div className="space-y-8 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="container mx-auto p-6">
+      {/* Contract Header */}
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-ink-text">{contract.title}</h1>
-          <div className="mt-2 flex items-center gap-3">
-            <span className={`px-2 py-1 text-sm font-medium rounded-full ${getStatusColor(contract.status)}`}>
+          <h1 className="text-2xl font-semibold text-ink-text mb-2">{contract.title}</h1>
+          <div className="flex items-center gap-3">
+            <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(contract.status)}`}>
               {contract.status}
             </span>
             <span className="text-sm text-ink-medium">
@@ -237,12 +257,27 @@ const ContractDetailPage = () => {
             </span>
           </div>
         </div>
-        {contract.role === 'CM' && (
-          <Button variant="primary">
-            Upload New Version
-          </Button>
-        )}
+        
+        {/* Upload Version Button */}
+        <Button
+          onClick={() => setShowUploadModal(true)}
+          disabled={contract.status === 'Signed' || contract.status === 'Expired'}
+        >
+          Upload New Version
+        </Button>
       </div>
+
+      {/* Upload Version Modal */}
+      {showUploadModal && (
+        <UploadVersionModal
+          contractId={id!}
+          onClose={() => setShowUploadModal(false)}
+          onSuccess={() => {
+            setShowUploadModal(false);
+          }}
+          onAnalysisComplete={handleAnalysisComplete}
+        />
+      )}
 
       {/* Contract Info Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -281,171 +316,141 @@ const ContractDetailPage = () => {
           </div>
 
           {/* AI Analysis */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="px-4 py-5 sm:p-6">
-              <div className="flex items-center justify-between mb-4">
+          <div className="space-y-4">
+            {/* Analysis Cards */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-medium text-ink-text">AI Analysis</h3>
                 <span className="text-sm text-ink-medium">
                   Version {latestVersion.version_num}
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                {Object.entries(latestVersionTasks).map(([taskType, task]) => (
-                  <button
-                    key={taskType}
-                    onClick={() => setSelectedAnalysis(selectedAnalysis === taskType ? null : taskType)}
-                    className={`p-4 rounded-lg transition-all ${
-                      selectedAnalysis === taskType 
-                        ? 'bg-coral-primary text-white ring-2 ring-coral-primary'
-                        : 'bg-cloud-bg hover:bg-cloud-bg/80'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl" role="img" aria-label={taskType}>
-                        {getTaskIcon(taskType as AITaskType)}
-                      </span>
-                      <div className="flex-1 text-left">
-                        <h4 className="text-sm font-medium">
-                          {getTaskDisplayName(taskType as AITaskType)}
-                        </h4>
-                        <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium 
-                          ${selectedAnalysis === taskType ? 'bg-white/20 text-white' : getTaskStatusColor(task.status)}`}>
-                          {task.status}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-              {selectedAnalysis && (
-                <div className="border-t border-ink-light/10 pt-4">
-                  {renderAnalysisContent()}
-                </div>
-              )}
-            </div>
-          </div>
 
-          {/* Participants */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="px-4 py-5 sm:p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-ink-text">Participants</h3>
-                {contract.role === 'CM' && (
-                  <Button variant="secondary" size="sm">
-                    Manage Participants
-                  </Button>
-                )}
-              </div>
-              
-              {/* Group participants by role */}
-              <div className="mt-4 space-y-6">
-                {/* Contract Managers */}
-                <div>
-                  <h4 className="text-sm font-medium text-ink-medium mb-2">Contract Manager</h4>
-                  <div className="space-y-2">
-                    {contract.participants
-                      .filter(p => p.role === 'CM')
-                      .map((participant) => (
-                        <div key={participant.id} className="flex items-center justify-between p-3 bg-cloud-bg rounded-lg border border-purple-100">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
-                              <span className="text-sm font-medium text-purple-600">
-                                CM
-                              </span>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-ink-text">User ID: {participant.user_id}</p>
-                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-600">
-                                Contract Manager
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium
-                              ${participant.status === 'Signed' ? 'bg-green-100 text-green-600' :
-                                participant.status === 'Declined' ? 'bg-red-100 text-red-600' :
-                                'bg-yellow-100 text-yellow-600'}`}>
-                              {participant.status}
+              {/* Task Cards Grid */}
+              <div className="space-y-4">
+                {Object.entries(latestVersionTasks).map(([taskType, task]) => (
+                  <div key={taskType} className="w-full">
+                    <button
+                      onClick={() => setSelectedAnalysis(selectedAnalysis === taskType ? null : taskType)}
+                      className={`w-full p-4 rounded-t-lg transition-all ${
+                        selectedAnalysis === taskType 
+                          ? 'bg-coral-primary text-white'
+                          : 'bg-cloud-bg hover:bg-cloud-bg/80'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl" role="img" aria-label={taskType}>
+                            {getTaskIcon(taskType as AITaskType)}
+                          </span>
+                          <div>
+                            <h4 className="text-sm font-medium">
+                              {getTaskDisplayName(taskType as AITaskType)}
+                            </h4>
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium mt-1
+                              ${selectedAnalysis === taskType 
+                                ? 'bg-white/20 text-white' 
+                                : task.status === 'Completed'
+                                  ? 'bg-green-100 text-green-600'
+                                  : task.status === 'Running'
+                                    ? 'bg-blue-100 text-blue-600'
+                                    : 'bg-gray-100 text-gray-600'
+                              }`}
+                            >
+                              {task.status}
                             </span>
                           </div>
                         </div>
-                    ))}
+                        <svg 
+                          className={`w-5 h-5 transition-transform ${selectedAnalysis === taskType ? 'rotate-180' : ''}`} 
+                          fill="none" 
+                          viewBox="0 0 24 24" 
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </button>
+                    
+                    {/* Analysis Content */}
+                    {selectedAnalysis === taskType && (
+                      <div className="border-x border-b rounded-b-lg bg-white p-6">
+                        {task.status === 'Running' ? (
+                          <div className="text-center py-8">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-coral-primary mx-auto mb-4"></div>
+                            <p className="text-ink-medium">Analyzing document...</p>
+                          </div>
+                        ) : task.status === 'Failed' ? (
+                          <div className="text-center py-8">
+                            <div className="text-red-600 mb-2">⚠️ Analysis failed</div>
+                            <p className="text-ink-medium">Please try re-uploading the document</p>
+                          </div>
+                        ) : task.status === 'Completed' ? (
+                          <div className="w-full">
+                            {renderAnalysisContent()}
+                          </div>
+                        ) : (
+                          <p className="text-center py-8 text-ink-medium">
+                            Waiting to start analysis...
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Participants Section */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-medium text-ink-text mb-6">Participants</h3>
+              <div className="space-y-6">
+                {/* Contract Managers */}
+                <div>
+                  <h4 className="text-sm font-medium text-ink-medium mb-3">Contract Managers</h4>
+                  <div className="space-y-2">
+                    {contract.participants
+                      .filter(p => p.role === 'CM')
+                      .map(participant => (
+                        <div key={participant.id} className="flex items-center gap-2 text-sm">
+                          <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                          <span>{participant.user_id}</span>
+                        </div>
+                      ))}
                   </div>
                 </div>
 
                 {/* Authorized Signatories */}
                 <div>
-                  <h4 className="text-sm font-medium text-ink-medium mb-2">Authorized Signatories</h4>
+                  <h4 className="text-sm font-medium text-ink-medium mb-3">Authorized Signatories</h4>
                   <div className="space-y-2">
                     {contract.participants
                       .filter(p => p.role === 'AS')
                       .sort((a, b) => (a.signing_order || 0) - (b.signing_order || 0))
-                      .map((participant) => (
-                        <div key={participant.id} className="flex items-center justify-between p-3 bg-cloud-bg rounded-lg border border-blue-100">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                              <span className="text-sm font-medium text-blue-600">
-                                {participant.signing_order || '-'}
-                              </span>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-ink-text">User ID: {participant.user_id}</p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-600">
-                                  Authorized Signatory
-                                </span>
-                                {participant.signing_order && (
-                                  <span className="text-xs text-ink-medium">
-                                    Signs {participant.signing_order === 1 ? 'first' : `${participant.signing_order}${participant.signing_order === 2 ? 'nd' : participant.signing_order === 3 ? 'rd' : 'th'}`}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium
-                              ${participant.status === 'Signed' ? 'bg-green-100 text-green-600' :
-                                participant.status === 'Declined' ? 'bg-red-100 text-red-600' :
-                                participant.status === 'Withdrawn' ? 'bg-gray-100 text-gray-600' :
-                                'bg-yellow-100 text-yellow-600'}`}>
-                              {participant.status}
-                            </span>
-                          </div>
+                      .map(participant => (
+                        <div key={participant.id} className="flex items-center gap-2 text-sm">
+                          <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                          <span>{participant.user_id}</span>
+                          {participant.signing_order && (
+                            <span className="text-xs text-ink-medium">(Signs #{participant.signing_order})</span>
+                          )}
                         </div>
-                    ))}
+                      ))}
                   </div>
                 </div>
 
                 {/* Contract Observers */}
                 <div>
-                  <h4 className="text-sm font-medium text-ink-medium mb-2">Contract Observers</h4>
+                  <h4 className="text-sm font-medium text-ink-medium mb-3">Contract Observers</h4>
                   <div className="space-y-2">
                     {contract.participants
                       .filter(p => p.role === 'CO')
-                      .map((participant) => (
-                        <div key={participant.id} className="flex items-center justify-between p-3 bg-cloud-bg rounded-lg border border-gray-100">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
-                              <span className="text-sm font-medium text-gray-600">
-                                CO
-                              </span>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-ink-text">User ID: {participant.user_id}</p>
-                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                Contract Observer
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium
-                              ${participant.status === 'Withdrawn' ? 'bg-gray-100 text-gray-600' :
-                                'bg-yellow-100 text-yellow-600'}`}>
-                              {participant.status}
-                            </span>
-                          </div>
+                      .map(participant => (
+                        <div key={participant.id} className="flex items-center gap-2 text-sm">
+                          <span className="w-2 h-2 rounded-full bg-gray-500"></span>
+                          <span>{participant.user_id}</span>
                         </div>
-                    ))}
+                      ))}
                   </div>
                 </div>
               </div>
@@ -508,15 +513,12 @@ const ContractDetailPage = () => {
             </div>
           </div>
 
-          {/* Add Chat section after Versions */}
-          <div className="bg-white rounded-lg shadow overflow-hidden mt-6">
+          {/* Chat Section */}
+          <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="px-4 py-5 sm:p-6">
               <h3 className="text-lg font-medium text-ink-text mb-4">Contract Chat</h3>
               <div className="h-[500px]">
-                <ContractChat 
-                  contractId={contract.id} 
-                  versionId={contract.versions[0].id} 
-                />
+                <ContractChat contractId={id!} />
               </div>
             </div>
           </div>

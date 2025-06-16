@@ -87,12 +87,12 @@ export const contracts = {
   },
 
   get: async (id: string): Promise<Contract> => {
-    const response = await api.get<Contract>(`/api/contracts/${id}`);
+    const response = await api.get<Contract>(`/contracts/${id}`);
     return response.data;
   },
 
   create: async (formData: FormData): Promise<Contract> => {
-    const response = await api.post<Contract>('/api/contracts', formData, {
+    const response = await api.post<Contract>('/contracts', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -101,12 +101,12 @@ export const contracts = {
   },
 
   update: async (id: string, data: Partial<Contract>): Promise<Contract> => {
-    const response = await api.put<Contract>(`/api/contracts/${id}`, data);
+    const response = await api.put<Contract>(`/contracts/${id}`, data);
     return response.data;
   },
 
   uploadVersion: async (id: string, formData: FormData): Promise<ContractVersion> => {
-    const response = await api.post<ContractVersion>(`/api/contracts/${id}/versions`, formData, {
+    const response = await api.post<ContractVersion>(`/contracts/${id}/versions`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -123,17 +123,17 @@ export const contracts = {
 // Comments API
 export const comments = {
   list: async (contractId: string): Promise<Comment[]> => {
-    const response = await api.get<Comment[]>(`/api/comments/${contractId}`);
+    const response = await api.get<Comment[]>(`/comments/${contractId}`);
     return response.data;
   },
 
   create: async (contractId: string, data: { content: string; location?: string }): Promise<Comment> => {
-    const response = await api.post<Comment>('/api/comments', { contract_id: contractId, ...data });
+    const response = await api.post<Comment>('/comments', { contract_id: contractId, ...data });
     return response.data;
   },
 
   reply: async (commentId: string, content: string): Promise<Comment> => {
-    const response = await api.post<Comment>(`/api/comments/${commentId}/reply`, { content });
+    const response = await api.post<Comment>(`/comments/${commentId}/reply`, { content });
     return response.data;
   },
 };
@@ -141,22 +141,22 @@ export const comments = {
 // AI Features API
 export const ai = {
   chat: async (contractId: string, question: string): Promise<ChatResponse> => {
-    const response = await api.post<ChatResponse>('/api/ai/chat', { contract_id: contractId, question });
+    const response = await api.post<ChatResponse>('/ai/chat', { contract_id: contractId, question });
     return response.data;
   },
 
   getClauses: async (contractId: string): Promise<Clause[]> => {
-    const response = await api.get<Clause[]>(`/api/ai/clauses/${contractId}`);
+    const response = await api.get<Clause[]>(`/ai/clauses/${contractId}`);
     return response.data;
   },
 
   getRisks: async (contractId: string): Promise<Risk[]> => {
-    const response = await api.get<Risk[]>(`/api/ai/risks/${contractId}`);
+    const response = await api.get<Risk[]>(`/ai/risks/${contractId}`);
     return response.data;
   },
 
   getDiff: async (contractId: string, version1: string, version2: string): Promise<DiffSummary> => {
-    const response = await api.get<DiffSummary>(`/api/ai/diff/${contractId}`, {
+    const response = await api.get<DiffSummary>(`/ai/diff/${contractId}`, {
       params: { v1: version1, v2: version2 },
     });
     return response.data;
