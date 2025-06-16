@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-cloud-bg text-ink-text;
+  }
+}
+
+@layer components {
+  .input {
+    @apply mt-1 block w-full rounded-md border border-ink-light/30 shadow-sm p-2 focus:border-coral-primary focus:ring focus:ring-coral-primary/20;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-ink-text;
+  }
+
+  .error-text {
+    @apply mt-1 text-sm text-red-600;
+  }
+
+  .error-box {
+    @apply p-3 bg-red-50 border border-red-200 rounded-md;
+  }
+
+  .link {
+    @apply text-coral-primary hover:text-coral-primary/90;
+  }
+} 

@@ -11,3 +11,4 @@ rules_to_follow
 4.all backend inside server directory going to deploy on Render
 5.all fronend inside client directory going to deploy on Netlify
 6.follow proper folder stucture for project
+7.do not change backend unless it explicitly told to you

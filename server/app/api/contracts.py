@@ -7,7 +7,7 @@ from server.app.tasks.clause_extraction_task import extract_clauses_from_contrac
 from server.app.tasks.risk_extraction_task import extract_risks_from_contract
 from server.app.tasks.diff_extraction_task import extract_diff_from_contract
 from server.app.tasks.embedding_task import generate_embeddings_for_contract
-from typing import Any, Optional
+from typing import Any, Optional, List, Dict
 from enum import Enum
 from datetime import date
 from ..core.supabase_client import supabase
@@ -15,11 +15,35 @@ import os
 from uuid import UUID
 import uuid
 import logging
+from pydantic import BaseModel
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+class ContractResponse(BaseModel):
+    id: str
+    title: str
+    status: str
+    expiry_date: Optional[str]
+    created_by: str
+    created_at: str
+    updated_at: str
+    role: str  # User's role for this contract (CM/AS/CO)
+
+class ContractDetailResponse(BaseModel):
+    id: UUID
+    title: str
+    status: str
+    expiry_date: Optional[str]
+    created_by: str
+    created_at: str
+    updated_at: str
+    role: str  # User's role for this contract
+    versions: List[ContractVersionResponse]
+    participants: List[ParticipantResponse]
+    ai_tasks: Dict[str, Any]  # AI processing status and results
 
 @router.post("/contracts", response_model=ContractResponse, status_code=status.HTTP_201_CREATED)
 def create_contract_endpoint(
@@ -248,4 +272,101 @@ async def trigger_diff(
         extract_diff_from_contract.delay(contract_id, current_version_id, prev_file_url, curr_file_url)
         return {"message": "Diff extraction task triggered", "contract_id": contract_id, "current_version_id": current_version_id, "previous_version_id": previous_version_id}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to trigger diff extraction: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Failed to trigger diff extraction: {str(e)}")
+
+@router.get("/contracts/me")
+async def get_user_contracts(user=Depends(verify_jwt)):
+    try:
+        # Get all contracts where the user is a participant
+        response = supabase.from_('contract_participants').select(
+            """
+            contract_id,
+            role,
+            contracts!inner (
+                id,
+                title,
+                status,
+                expiry_date,
+                created_by,
+                created_at,
+                updated_at
+            )
+            """
+        ).eq('user_id', user['sub']).execute()
+
+        if hasattr(response, 'error') and response.error:
+            raise HTTPException(status_code=400, detail=str(response.error))
+
+        # Transform the response to match our schema
+        contracts = []
+        for item in response.data:
+            contract = item['contracts']
+            contracts.append(ContractResponse(
+                id=contract['id'],
+                title=contract['title'],
+                status=contract['status'],
+                expiry_date=contract['expiry_date'],
+                created_by=contract['created_by'],
+                created_at=contract['created_at'],
+                updated_at=contract['updated_at'],
+                role=item['role']
+            ))
+
+        return {"contracts": contracts}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/contracts/{id}", response_model=ContractDetailResponse)
+async def get_contract_details(
+    id: UUID,
+    user: dict = Depends(verify_jwt)
+) -> Any:
+    try:
+        # 1. Check if user has access to this contract
+        participant = supabase.table("contract_participants").select("role").eq("contract_id", str(id)).eq("user_id", user["sub"]).single().execute()
+        if not participant.data:
+            raise HTTPException(status_code=403, detail="You don't have access to this contract")
+        
+        user_role = participant.data["role"]
+
+        # 2. Get contract basic info
+        contract = supabase.table("contracts").select("*").eq("id", str(id)).single().execute()
+        if not contract.data:
+            raise HTTPException(status_code=404, detail="Contract not found")
+
+        # 3. Get all versions
+        versions = supabase.table("contract_versions").select("*").eq("contract_id", str(id)).order("version_num").execute()
+
+        # 4. Get all participants with user details
+        participants = supabase.table("contract_participants").select("*, users!inner(email)").eq("contract_id", str(id)).execute()
+
+        # 5. Get all AI tasks
+        ai_tasks = supabase.table("ai_tasks").select("*").eq("contract_id", str(id)).execute()
+
+        # 6. Organize AI tasks by type and version
+        organized_ai_tasks = {}
+        for task in ai_tasks.data or []:
+            version_id = task["version_id"]
+            task_type = task["type"]
+            if version_id not in organized_ai_tasks:
+                organized_ai_tasks[version_id] = {}
+            organized_ai_tasks[version_id][task_type] = {
+                "status": task["status"],
+                "result": task["result"],
+                "updated_at": task["updated_at"]
+            }
+
+        # 7. Construct response
+        response = {
+            **contract.data,
+            "role": user_role,
+            "versions": versions.data or [],
+            "participants": participants.data or [],
+            "ai_tasks": organized_ai_tasks
+        }
+
+        return ContractDetailResponse(**response)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) 
