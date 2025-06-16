@@ -1,13 +1,24 @@
 import { useState } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
+import { useAuthContext } from '../contexts/AuthContext';
 
 const DashboardLayout = () => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const { user, logout } = useAuthContext();
 
   const handleLogout = async () => {
-    // TODO: Implement logout logic
-    navigate('/login');
+    await logout.mutateAsync();
+  };
+
+  // Get initials from email
+  const getInitials = (email: string) => {
+    return email
+      .split('@')[0] // Get the part before @
+      .split(/[._-]/) // Split by common separators
+      .map(part => part[0]?.toUpperCase()) // Get first letter of each part
+      .slice(0, 2) // Take first two
+      .join(''); // Join them
   };
 
   return (
@@ -22,24 +33,13 @@ const DashboardLayout = () => {
             </Link>
 
             {/* Navigation Links */}
-            <div className="flex items-center space-x-8">
+            <div className="flex-1 flex justify-center">
               <Link
                 to="/dashboard"
-                className="text-ink-text hover:text-coral-primary"
+                className="text-ink-text hover:text-coral-primary text-lg font-medium"
               >
                 Contracts
               </Link>
-              <div className="relative">
-                <button
-                  className="text-ink-text hover:text-coral-primary"
-                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                >
-                  Tasks
-                  <span className="ml-1 bg-coral-primary text-white text-xs px-2 py-0.5 rounded-full">
-                    3
-                  </span>
-                </button>
-              </div>
             </div>
 
             {/* User Menu */}
@@ -49,9 +49,11 @@ const DashboardLayout = () => {
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
               >
                 <div className="w-8 h-8 rounded-full bg-ink-light/20 flex items-center justify-center">
-                  <span className="text-sm font-medium text-ink-text">JD</span>
+                  <span className="text-sm font-medium text-ink-text">
+                    {user ? getInitials(user.email) : ''}
+                  </span>
                 </div>
-                <span className="text-ink-text">John Doe</span>
+                <span className="text-ink-text">{user?.email}</span>
               </button>
 
               {/* Dropdown Menu */}

@@ -12,6 +12,7 @@ const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'))
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
 const ContractDetailPage = lazy(() => import('./pages/contracts/ContractDetailPage'));
 const NewContractPage = lazy(() => import('./pages/contracts/NewContractPage'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 
 // Create Query Client
 const queryClient = new QueryClient({
@@ -38,37 +39,47 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// App Content Component that uses auth context
+function AppRoutes() {
+  const { isAuthenticated } = useAuthContext();
+
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <Routes>
+        {/* Landing Page */}
+        <Route path="/" element={<LandingPage />} />
+
+        {/* Auth Routes */}
+        <Route element={<AuthLayout />}>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        </Route>
+
+        {/* Protected Routes */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/contracts/new" element={<NewContractPage />} />
+          <Route path="/contracts/:id" element={<ContractDetailPage />} />
+        </Route>
+      </Routes>
+    </Suspense>
+  );
+}
+
+// Main App Component
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
         <AuthProvider>
-          <Suspense fallback={<div>Loading...</div>}>
-            <Routes>
-              {/* Auth Routes */}
-              <Route element={<AuthLayout />}>
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-              </Route>
-
-              {/* Protected Routes */}
-              <Route
-                element={
-                  <ProtectedRoute>
-                    <DashboardLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/contracts/new" element={<NewContractPage />} />
-                <Route path="/contracts/:id" element={<ContractDetailPage />} />
-              </Route>
-
-              {/* Redirect root to dashboard */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-          </Suspense>
+          <AppRoutes />
         </AuthProvider>
       </Router>
     </QueryClientProvider>
